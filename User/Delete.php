@@ -268,19 +268,6 @@ class Delete extends Process
                 }
                 unset($model, $values);
                 
-                // Delete all user first body scan
-                $model  = new \Models_Systems_Bodies;
-                $values = $model->fetchAll($model->select()->from($model, array('id'))->where('refUser = ?', $userToHandle['id']));
-                
-                if(!is_null($values) && count($values) > 0)
-                {
-                    foreach($values AS $value)
-                    {
-                        $model->updateById($value['id'], array('refUser' => new \Zend_Db_Expr('NULL')));
-                    }
-                }
-                unset($model, $values);
-                
                 // Delete all user body scans
                 $model  = new \Models_Systems_Bodies_Users;
                 $values = $model->getByRefUser($userToHandle['id']);
