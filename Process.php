@@ -8,6 +8,8 @@ namespace Process;
 
 abstract class Process
 {
+    public static $sendTweet            = false;
+    
     protected static $databaseCache     = null;
     protected static $databaseFileCache = null;
     
@@ -70,5 +72,10 @@ abstract class Process
         }
         
         return static::$databaseFileCache;
+    }
+    
+    public static function setSendTweetStatus($bool)
+    {
+        self::$sendTweet = $bool;
     }
 }
