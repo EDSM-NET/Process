@@ -81,12 +81,6 @@ class Market extends Process
             \EDSM_Api_Tweet::status(implode(PHP_EOL, $tweet));
         }
         
-        // echo log
-        foreach($tweet AS $line)
-        {
-            echoLog('    ' . $line);
-        }
-        
         unset($stationsModel, $tweet);
         
         return;

@@ -12,30 +12,30 @@ class Check extends Process
 {
     static private $limit           = 15000;
     static private $lastModified    = array();
-    
+
     static public function run()
     {
         $journalModels      = new \Models_Journal;
         $journalEntries     = $journalModels->select()
                                             ->limit(static::$limit)
                                             ->order('RAND()');
-        
+
         $journalEntries     = $journalModels->fetchAll($journalEntries);
-        
+
         $nbSkip             = 0;
         $nbDeleted          = 0;
         $nbDiscarded        = 0;
-        
+
         foreach($journalEntries AS $entry)
         {
             $entry = $entry->toArray();
             $entry['message'] = \Zend_Json::decode($entry['message']);
-            
+
             if(!in_array($entry['event'], \Journal\Discard::$events))
             {
                 $event              = $entry['event'];
                 $eventClass         = '\Journal\Event\\' . $event;
-                
+
                 $classFile = LIBRARY_PATH . '/Journal/Event/' . $event . '.php';
                 if(!is_file($classFile))
                 {
@@ -58,24 +58,24 @@ class Check extends Process
                         }
                     }
                 }
-                
+
                 // Call the event class
                 $eventClass::resetReturnMessage();
-                $eventClass::setUser(\EDSM_User::getInstance($entry['refUser']));
+                $eventClass::setUser(\Component\User::getInstance($entry['refUser']));
                 $eventClass::setSoftware($entry['refSoftware']);
-                
+
                 if(!is_null($entry['gameState']))
                 {
                     $entry['gameState'] = \Zend_Json::decode($entry['gameState']);
                     $eventClass::setGameState($entry['gameState']);
                 }
-                
+
                 $json               = $entry['message'];
                 $json['event']      = $event;
                 $json['timestamp']  = $entry['dateEvent'];
-                
+
                 $return             = $eventClass::run($json);
-                
+
                 if($eventClass != 'Journal\Event' && $eventClass::isOK() === true && in_array($return['msgnum'], [100, 101, 102]))
                 {
                     $nbDeleted++;
@@ -93,7 +93,7 @@ class Check extends Process
                 $journalModels->deleteById($entry['id']);
             }
         }
-        
+
         if($nbSkip > 0)
         {
             static::log('<span class="text-info">Journal\Check:</span> Skipped ' . \Zend_Locale_Format::toNumber($nbSkip) . ' events');
@@ -106,9 +106,9 @@ class Check extends Process
         {
             static::log('<span class="text-info">Journal\Check:</span> Deleted ' . \Zend_Locale_Format::toNumber($nbDiscarded) . ' discarded events');
         }
-        
+
         unset($journalModels, $journalEntries);
-        
+
         return;
     }
 }

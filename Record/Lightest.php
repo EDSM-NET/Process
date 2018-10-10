@@ -11,13 +11,13 @@ use         Process\Process;
 class Lightest extends Process
 {
     static private $cacheKey = 'Statistics_BodiesController_Lightest%GROUPNAME%_%TYPE%';
-    
+
     static public function run()
     {
         list($group, $type)         = func_get_args();
         $systemsBodiesModel         = new \Models_Systems_Bodies;
         $systemsBodiesSurfaceModel  = new \Models_Systems_Bodies_Surface;
-        
+
         if($group == 1)
         {
             $groupName  = 'Star';
@@ -33,13 +33,13 @@ class Lightest extends Process
             static::log('<span class="text-info">Record\Lightest:</span> <span class="text-danger">Unknown group ' . $group . '</span>');
             return;
         }
-        
+
         if(is_null($typeName))
         {
             static::log('<span class="text-info">Record\Lightest:</span> <span class="text-danger">Unknown type ' . $type . '</span>');
             return;
         }
-        
+
         // Make record query
         $select     = $systemsBodiesModel->select()
                                         ->from($systemsBodiesModel, array(
@@ -58,7 +58,7 @@ class Lightest extends Process
                                         ->order('mass ASC')
                                         ->limit(3);
         $result     = $systemsBodiesModel->fetchAll($select);
-        
+
         if(!is_null($result) && count($result) > 0)
         {
             $cacheKey   = str_replace(
@@ -66,43 +66,43 @@ class Lightest extends Process
                 array($groupName, $type),
                 static::$cacheKey
             );
-            
+
             $result = $result->toArray();
             static::getDatabaseFileCache()->save($result[0], $cacheKey);
-            
+
             // Give badge to all retroactive users
             foreach($result AS $record)
             {
                 $body               = \EDSM_System_Body::getInstance($record['id']);
                 $bodyFirstScannedBy = $body->getFirstScannedBy();
-                
-                if(!is_null($bodyFirstScannedBy) && $bodyFirstScannedBy instanceof \EDSM_User)
+
+                if(!is_null($bodyFirstScannedBy) && $bodyFirstScannedBy instanceof \Component\User)
                 {
                     $bodyFirstScannedBy->giveBadge(
-                        7800, 
+                        7800,
                         array('type' => 'lightest' . $groupName . '_' . $type, 'bodyId' => $body->getId())
                     );
                 }
-                
+
                 unset($body, $bodyFirstScannedBy);
             }
         }
-        
+
         static::log('<span class="text-info">Record\Lightest:</span> ' . $groupName . ' ' . $typeName);
-        
+
         $systemsBodiesModel->getAdapter()->closeConnection();
         unset($group, $type, $groupName, $typeName);
         unset($systemsBodiesModel, $systemsBodiesSurfaceModel);
         unset($result);
-        
+
         return;
     }
-    
+
     static public function getName()
     {
         return 'RECORD\Lightest %1$s';
     }
-    
+
     // Fake function for getText
     static private function ___translate___()
     {
