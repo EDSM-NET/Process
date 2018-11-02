@@ -12,13 +12,13 @@ class Green extends Process
 {
     static private $reset = false;
     static private $limit = 100000;
-    
+
     static public function run()
     {
         $systemsModel       = new \Models_Systems;
         $systemsHidesModel  = new \Models_Systems_Hides;
         $needLoop           = true;
-        
+
         if(static::$reset === true)
         {
             $greenToCheck       = $systemsModel->fetchAll(
@@ -31,15 +31,15 @@ class Green extends Process
                              )
                              ->limit(static::$limit)
             );
-            
+
             if(!is_null($greenToCheck) && count($greenToCheck) > 0)
             {
                 $greenToCheck = $greenToCheck->toArray();
-                
+
                 foreach($greenToCheck AS $system)
                 {
-                    $system = \EDSM_System::getInstance($system['id']);
-                    
+                    $system = \Component\System::getInstance($system['id']);
+
                     if($system->isValid())
                     {
                         $systemsModel->updateById(
@@ -48,11 +48,11 @@ class Green extends Process
                             false
                         );
                     }
-                    
-                    \EDSM_System::destroyInstance($system->getId());
+
+                    \Component\System::destroyInstance($system->getId());
                     unset($system);
                 }
-                
+
                 static::log('<span class="text-info">System\Green:</span> Reset ' . \Zend_Locale_Format::toNumber(count($greenToCheck)) . ' systems');
             }
         }
@@ -68,30 +68,30 @@ class Green extends Process
                              )
                              ->limit(static::$limit)
             );
-            
+
             if(!is_null($greenToCheck) && count($greenToCheck) > 0)
             {
                 $greenToCheck = $greenToCheck->toArray();
-                
+
                 foreach($greenToCheck AS $system)
                 {
-                    $system = \EDSM_System::getInstance($system['id']);
-                    
+                    $system = \Component\System::getInstance($system['id']);
+
                     if($system->isValid())
                     {
                         $system->isGreen(true); // Force field update
                     }
-                    
-                    \EDSM_System::destroyInstance($system->getId());
+
+                    \Component\System::destroyInstance($system->getId());
                     unset($system);
                 }
-                
+
                 static::log('<span class="text-info">System\Green:</span> Updated ' . \Zend_Locale_Format::toNumber(count($greenToCheck)) . ' systems');
-            }   
+            }
         }
-        
+
         unset($systemsModel, $systemsHidesModel, $greenToCheck);
-        
+
         return;
     }
 }

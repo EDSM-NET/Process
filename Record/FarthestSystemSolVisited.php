@@ -37,7 +37,7 @@ class FarthestSystemSolVisited extends Process
             // Give badge to all retroactive users
             foreach($result AS $record)
             {
-                $system             = \EDSM_System::getInstance($record['id']);
+                $system             = \Component\System::getInstance($record['id']);
                 $firstDiscoveredBy  = $system->getFirstDiscoveredBy();
 
                 if(!is_null($firstDiscoveredBy))

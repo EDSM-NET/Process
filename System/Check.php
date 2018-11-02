@@ -16,7 +16,7 @@ class Check extends Process
         $systemsHidesModel      = new \Models_Systems_Hides;
         $systemsFeaturedModel   = new \Models_Systems_Featured;
         $distancesModel         = new \Models_Distances;
-        
+
         $select = $systemsModel->select()
                              ->from($systemsModel, array('id'))
                              ->limit(1)
@@ -32,44 +32,44 @@ class Check extends Process
                              )
                              ->order('lastTrilateration ASC')
                              ->order('id ASC');
-                             
+
         $currentSystem = $systemsModel->fetchRow($select);
-        
+
         if(!is_null($currentSystem))
         {
-            $system   = \EDSM_System::getInstance($currentSystem->id);
-            
+            $system   = \Component\System::getInstance($currentSystem->id);
+
             static::log('<span class="text-info">System\Check:</span> ' . $system->getName() . ' #' . $currentSystem->id);
-            
+
             if(is_null($system->getCountKnownRefs()))
             {
                 $countKnownRefs = $systemsModel->countKnownRefs($currentSystem->id);
                 $systemsModel->updateById($currentSystem->id, array('countKnownRefs' => $countKnownRefs), false);
                 unset($countKnownRefs);
             }
-            
+
             $return   = \EDSM_System_Coordinates::tryCalculate($system, true);
-            
+
             $cacheKey = 'EDSM_System_Coordinates_tryCalculate_Verbose_' . $currentSystem->id;
             //static::getDatabaseCache()->remove($cacheKey);
             static::getDatabaseCache()->save($return, $cacheKey);
             unset($return['verbose']); // Remove verbose to save both caches
-            
+
             $cacheKey = 'EDSM_System_Coordinates_tryCalculate_' . $currentSystem->id;
             //static::getDatabaseCache()->remove($cacheKey);
             static::getDatabaseCache()->save($return, $cacheKey);
-            
+
             if(!is_null($return))
             {
                 if($return['status'] === 'ok')
                 {
                     if(is_null($system->getX()))
                     {
-                        static::log('              <span class="text-success">Coordinates found!</span> [' 
-                            . ($return['coordinates']['x'] / 32) . ' / ' 
-                            . ($return['coordinates']['y'] / 32) . ' / ' 
+                        static::log('              <span class="text-success">Coordinates found!</span> ['
+                            . ($return['coordinates']['x'] / 32) . ' / '
+                            . ($return['coordinates']['y'] / 32) . ' / '
                             . ($return['coordinates']['z'] / 32) . ']');
-                        
+
                         $systemsModel->updateById(
                             $currentSystem->id,
                             array(
@@ -79,18 +79,18 @@ class Check extends Process
                                 'lastTrilateration'     => new \Zend_Db_Expr('NOW()'),
                             )
                         );
-                        
+
                         $distancesModel->removeReferencesTrilaterationCaches($currentSystem->id);
                     }
                     else
                     {
                         if($system->getX() != $return['coordinates']['x'] || $system->getY() != $return['coordinates']['y'] || $system->getZ() != $return['coordinates']['z'])
                         {
-                            static::log('              Coordinates updated! [' 
-                                . '<span class="' . ( ($system->getX() == $return['coordinates']['x']) ? 'text-success' : 'text-danger' ) . '">' . ($return['coordinates']['x'] / 32) . '</span> / ' 
-                                . '<span class="' . ( ($system->getY() == $return['coordinates']['y']) ? 'text-success' : 'text-danger' ) . '">' . ($return['coordinates']['y'] / 32) . '</span> / ' 
+                            static::log('              Coordinates updated! ['
+                                . '<span class="' . ( ($system->getX() == $return['coordinates']['x']) ? 'text-success' : 'text-danger' ) . '">' . ($return['coordinates']['x'] / 32) . '</span> / '
+                                . '<span class="' . ( ($system->getY() == $return['coordinates']['y']) ? 'text-success' : 'text-danger' ) . '">' . ($return['coordinates']['y'] / 32) . '</span> / '
                                 . '<span class="' . ( ($system->getZ() == $return['coordinates']['z']) ? 'text-success' : 'text-danger' ) . '">' . ($return['coordinates']['z'] / 32) . '</span>]');
-                            
+
                             $systemsModel->updateById(
                                 $currentSystem->id,
                                 array(
@@ -100,7 +100,7 @@ class Check extends Process
                                     'lastTrilateration'     => new \Zend_Db_Expr('NOW()'),
                                 )
                             );
-                            
+
                             $distancesModel->removeReferencesTrilaterationCaches($currentSystem->id);
                         }
                         else
@@ -114,9 +114,9 @@ class Check extends Process
                             );
                         }
                     }
-                        
-                    \EDSM_System::destroyInstance($currentSystem->id);
-                    
+
+                    \Component\System::destroyInstance($currentSystem->id);
+
                     $systemsModel->getAdapter()->closeConnection();
                     unset($systemsModel, $systemsHidesModel, $systemsFeaturedModel, $distancesModel, $currentSystem, $system);
                     return;
@@ -125,13 +125,13 @@ class Check extends Process
                 {
                     if(!is_null($system->getX()))
                     {
-                        static::log('              <span class="text-danger">Coordinates invalid!</span> [' 
-                            . ($system->getX() / 32) . ' / ' 
-                            . ($system->getY() / 32) . ' / ' 
+                        static::log('              <span class="text-danger">Coordinates invalid!</span> ['
+                            . ($system->getX() / 32) . ' / '
+                            . ($system->getY() / 32) . ' / '
                             . ($system->getZ() / 32) . ']');
                         //static::log('                => ' . $return['status']);
                         static::log('                => ' . $return['statusMessage']);
-                        
+
                         $systemsModel->updateById(
                             $currentSystem->id,
                             array(
@@ -140,14 +140,14 @@ class Check extends Process
                             false
                         );
                         
-                        \EDSM_System::destroyInstance($currentSystem->id);
-                        
+                        \Component\System::destroyInstance($currentSystem->id);
+
                         unset($systemsModel, $systemsHidesModel, $systemsFeaturedModel, $distancesModel, $currentSystem, $system);
                         return;
                     }
                 }
             }
-            
+
             $systemsModel->updateById(
                 $currentSystem->id,
                 array(
@@ -155,13 +155,13 @@ class Check extends Process
                 ),
                 false
             );
-            
-            \EDSM_System::destroyInstance($currentSystem->id);
-            
+
+            \Component\System::destroyInstance($currentSystem->id);
+
             $systemsModel->getAdapter()->closeConnection();
             unset($systemsModel, $systemsHidesModel, $systemsFeaturedModel, $distancesModel, $currentSystem, $system);
         }
-        
+
         return;
     }
 }

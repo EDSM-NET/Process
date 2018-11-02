@@ -133,7 +133,6 @@ class SystemsPopulated extends Process
                     else
                     {
                         // Skip allegiance without a faction
-                        //\Zend_Debug::dump($tmpSystem, 'MISS');
                         continue;
                     }
 
