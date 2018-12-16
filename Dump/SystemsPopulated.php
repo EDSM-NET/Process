@@ -8,6 +8,9 @@ namespace   Process\Dump;
 
 use         Process\Process;
 
+use         Alias\System\State;
+use         Alias\System\Happiness;
+
 class SystemsPopulated extends Process
 {
     static private $tempFile        = APPLICATION_PATH . '/Data/Temp/systemsPopulated.json';
@@ -27,6 +30,7 @@ class SystemsPopulated extends Process
         $systemsModel               = new \Models_Systems;
         $systemsInformationsModel   = new \Models_Systems_Informations;
         $systemsHidesModel          = new \Models_Systems_Hides;
+        $factionsInfluencesModel    = new \Models_Factions_Influences;
 
         $select       = $systemsModel->select()
                                      ->from($systemsModel, array('id'))
@@ -128,12 +132,85 @@ class SystemsPopulated extends Process
                             $tmp['government'] = $controllingFaction->getGovernmentName();
                         }
 
+                        $tmp['isPlayer'] = $controllingFaction->isPlayerFaction();
+
                         $tmpSystem['controllingFaction'] = $tmp;
                     }
                     else
                     {
                         // Skip allegiance without a faction
                         continue;
+                    }
+
+                    // Other factions
+                    $factions                   = $factionsInfluencesModel->getByRefSystem($system->getId());
+
+                    if(!is_null($factions) && count($factions) > 0)
+                    {
+                        $tmpSystem['factions'] = array();
+
+                        foreach($factions AS $factionInfluence)
+                        {
+                            $faction                        = \EDSM_System_Station_Faction::getInstance($factionInfluence['refFaction']);
+
+                            $tmp                            = array();
+
+                            $tmp['id']                      = $faction->getId();
+                            $tmp['name']                    = $faction->getName();
+
+                            if(!is_null($faction->getAllegiance()))
+                            {
+                                $tmp['allegiance'] = $faction->getAllegianceName();
+                            }
+
+                            if(!is_null($faction->getGovernment()))
+                            {
+                                $tmp['government'] = $faction->getGovernmentName();
+                            }
+
+                            $tmp['influence']               = (float) $factionInfluence['influence'];
+                            $tmp['state']                   = State::get($factionInfluence['state']);
+
+                            $statesToExport = array(
+                                'activeStates',
+                                'recoveringStates',
+                                'pendingStates',
+                            );
+
+                            foreach($statesToExport AS $currentStatesExport)
+                            {
+                                $tmp[$currentStatesExport]        = array();
+
+                                if(!is_null($factionInfluence[$currentStatesExport]))
+                                {
+                                    $factionInfluence[$currentStatesExport]   = \Zend_Json::decode($factionInfluence[$currentStatesExport]);
+
+                                    foreach($factionInfluence[$currentStatesExport] AS $state)
+                                    {
+                                        if(!array_key_exists('trend', $state))
+                                        {
+                                            $tmp[$currentStatesExport][] = array(
+                                                'state' => State::get($state['state']),
+                                            );
+                                        }
+                                        else
+                                        {
+                                            $tmp[$currentStatesExport][] = array(
+                                                'state' => State::get($state['state']),
+                                                'trend' => (int) $state['trend'],
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+
+                            $tmp['happiness']               = Happiness::get($factionInfluence['happiness']);
+
+                            $tmp['isPlayer']                = $faction->isPlayerFaction();
+                            $tmp['lastUpdate']              = strtotime($factionInfluence['dateUpdated']);
+
+                            $tmpSystem['factions'][]        = $tmp;
+                        }
                     }
 
                     // Stations
@@ -157,7 +234,6 @@ class SystemsPopulated extends Process
                     {
                         foreach($bodies AS $body)
                         {
-                            $body       = \EDSM_System_Body::getInstance($body['id']);
                             $tmpBody    = $body->renderApiArray();
 
                             $tmpSystem['bodies'][] = $tmpBody;

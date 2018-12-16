@@ -13,9 +13,9 @@ class Ship extends Process
 {
     static private $tempFolder  = APPLICATION_PATH . '/Data/Temp/Ships/';
     static private $shipFolder  = PUBLIC_PATH . '/img/ships/';
-    
+
     static private $limit       = 50;
-    
+
     static protected $cropLeft  = [
         128049267 => 400,   // Adder
         128816588 => 400,   // Alliance Challenger
@@ -43,6 +43,8 @@ class Ship extends Process
         128672138 => 400,
         128672269 => 400,   // Keelback
         128816567 => 300,   // Krait MkII
+        128839281 => 400,   // Krait Phantom
+        128915979 => 400,   // Mamba
         128049327 => 325,
         128049339 => 400,
         128049249 => 400,
@@ -54,35 +56,35 @@ class Ship extends Process
         128672255 => 350,
         128049309 => 300,
     ];
-    
+
     /**
      * Find a ship image into a folder and convert it to be used
      */
     static public function run()
     {
         $imagesToConvert = self::generateImagesToConvert();
-        
+
         if(count($imagesToConvert) > 0)
         {
             foreach($imagesToConvert AS $imageInformations)
             {
                 $image = self::cropImage($imageInformations);
-                
+
                 if(!is_null($image) && $image !== false)
                 {
                     // Downsize
-                    
+
                     // Save JPG
                     imagejpeg(
                         $image,
                         self::$shipFolder . $imageInformations['shipId'] . '/' . $imageInformations['file'] . '.jpg',
                         75
                     );
-                    
+
                     static::log('<span class="text-info">Image\Ship:</span> Saving ' . $imageInformations['shipId'] . '/' . $imageInformations['file']);
-                    
+
                     imagedestroy($image);
-                    
+
                     // Remove temp image
                     if(is_file(self::$tempFolder . $imageInformations['file'] . '.png'))
                     {
@@ -95,24 +97,24 @@ class Ship extends Process
                 }
             }
         }
-        
+
         return;
     }
-    
+
     static private function generateImagesToConvert()
     {
         $tmp        = array();
         $dir        = scandir(self::$tempFolder);
-        
+
         $paintjobs  = PaintJob::getAllFromFd();
-        
+
         foreach($dir AS $file)
         {
             if(is_file(self::$tempFolder . $file) && ( strpos($file, '.png') !== false || strpos($file, '.bmp') !== false ))
             {
                 $file   = str_replace('.png', '', $file);
                 $file   = str_replace('.bmp', '', $file);
-                
+
                 foreach($paintjobs AS $shipId => $shipPaints)
                 {
                     foreach($shipPaints as $paintKey => $name)
@@ -124,24 +126,24 @@ class Ship extends Process
                                 'name'      => $name,
                                 'file'      => $paintKey,
                             );
-                            
+
                             break 2;
                         }
                     }
                 }
             }
-            
+
             if(count($tmp) >= self::$limit)
             {
                 unset($paintjobs);
                 return $tmp;
             }
         }
-        
+
         unset($paintjobs);
         return $tmp;
     }
-    
+
     static private function cropImage($options)
     {
         if(is_file(self::$tempFolder . $options['file'] . '.png'))
@@ -156,7 +158,7 @@ class Ship extends Process
         {
             return null;
         }
-        
+
         if($image !== false && array_key_exists($options['shipId'], self::$cropLeft))
         {
             $croppedImage   = imagecreatetruecolor(760, 540);
@@ -172,17 +174,17 @@ class Ship extends Process
                 1520,
                 1080
             );
-            
+
             imagedestroy($image);
-            
+
             if($cropResult === true && $croppedImage !== false)
             {
                 return $croppedImage;
             }
-            
+
             unset($croppedImage);
         }
-        
+
         return null;
     }
 }
