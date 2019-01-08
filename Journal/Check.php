@@ -92,15 +92,15 @@ class Check extends Process
 
         if($nbSkip > 0)
         {
-            static::log('<span class="text-info">' . str_replace('\Process\\', '', static::class) . ':</span> Skipped ' . \Zend_Locale_Format::toNumber($nbSkip) . ' events');
+            static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Skipped ' . \Zend_Locale_Format::toNumber($nbSkip) . ' events');
         }
         if($nbDeleted > 0)
         {
-            static::log('<span class="text-info">' . str_replace('\Process\\', '', static::class) . ':</span> Reparsed ' . \Zend_Locale_Format::toNumber($nbDeleted) . ' events');
+            static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Reparsed ' . \Zend_Locale_Format::toNumber($nbDeleted) . ' events');
         }
         if($nbDiscarded > 0)
         {
-            static::log('<span class="text-info">' . str_replace('\Process\\', '', static::class) . ':</span> Deleted ' . \Zend_Locale_Format::toNumber($nbDiscarded) . ' discarded events');
+            static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Deleted ' . \Zend_Locale_Format::toNumber($nbDiscarded) . ' discarded events');
         }
 
         unset($journalModels, $journalEntries);

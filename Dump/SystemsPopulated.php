@@ -110,6 +110,7 @@ class SystemsPopulated extends Process
 
                     $tmpSystem['allegiance']    = $system->getAllegianceName();
                     $tmpSystem['government']    = $system->getGovernmentName();
+                    $tmpSystem['state']         = $system->getFactionStateName();
                     $tmpSystem['economy']       = $system->getEconomyName();
                     $tmpSystem['security']      = $system->getSecurityName();
                     $tmpSystem['population']    = $system->getPopulation();

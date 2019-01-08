@@ -80,6 +80,7 @@ class PowerPlay extends Process
 
                     $tmpSystem['allegiance']    = $system->getAllegianceName();
                     $tmpSystem['government']    = $system->getGovernmentName();
+                    $tmpSystem['state']         = $system->getFactionStateName();
 
                     $tmpSystem['date'] = $systemPowerplay['dateUpdated'];
 
