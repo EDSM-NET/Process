@@ -10,17 +10,13 @@ use         Process\Process;
 
 class Check extends Process
 {
-    static private $limit           = 15000;
-    static private $lastModified    = array();
+    static protected $limit         = 15000;
+    static protected $lastModified  = array();
 
     static public function run()
     {
         $journalModels      = new \Models_Journal;
-        $journalEntries     = $journalModels->select()
-                                            ->limit(static::$limit)
-                                            ->order('RAND()');
-
-        $journalEntries     = $journalModels->fetchAll($journalEntries);
+        $journalEntries     = self::getEntries();
 
         $nbSkip             = 0;
         $nbDeleted          = 0;
@@ -96,19 +92,31 @@ class Check extends Process
 
         if($nbSkip > 0)
         {
-            static::log('<span class="text-info">Journal\Check:</span> Skipped ' . \Zend_Locale_Format::toNumber($nbSkip) . ' events');
+            static::log('<span class="text-info">' . str_replace('\Process\\', '', static::class) . ':</span> Skipped ' . \Zend_Locale_Format::toNumber($nbSkip) . ' events');
         }
         if($nbDeleted > 0)
         {
-            static::log('<span class="text-info">Journal\Check:</span> Reparsed ' . \Zend_Locale_Format::toNumber($nbDeleted) . ' events');
+            static::log('<span class="text-info">' . str_replace('\Process\\', '', static::class) . ':</span> Reparsed ' . \Zend_Locale_Format::toNumber($nbDeleted) . ' events');
         }
         if($nbDiscarded > 0)
         {
-            static::log('<span class="text-info">Journal\Check:</span> Deleted ' . \Zend_Locale_Format::toNumber($nbDiscarded) . ' discarded events');
+            static::log('<span class="text-info">' . str_replace('\Process\\', '', static::class) . ':</span> Deleted ' . \Zend_Locale_Format::toNumber($nbDiscarded) . ' discarded events');
         }
 
         unset($journalModels, $journalEntries);
 
         return;
+    }
+
+    protected static function getEntries()
+    {
+        $journalModels      = new \Models_Journal;
+        $journalEntries     = $journalModels->select()
+                                            ->limit(static::$limit)
+                                            ->where('event != ?', 'Scan')
+                                            ->where('event != ?', 'SAAScanComplete')
+                                            ->order('RAND()');
+
+        return $journalModels->fetchAll($journalEntries);
     }
 }
