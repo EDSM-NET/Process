@@ -28,7 +28,7 @@ class Report extends Process
         $users      = $usersModel->fetchAll(
             $usersModel->select()
                        ->where('dateLastActivity >= ?', static::$days[1])
-                       ->where('dateLastActivity <= NOW()')
+                       //->where('dateLastActivity <= NOW()')
                        ->where('receiveEmailWeeklyReports = ?', 1)
                        ->where('nbFlightLogs > ?', 0)
                        ->order('dateLastActivity DESC')
@@ -134,6 +134,8 @@ class Report extends Process
                     $usersReportsModel->insert($update);
                 }
             }
+
+            $usersReportsModel->getAdapter()->closeConnection();
         }
 
         unset($usersReportsModel, $systemsLogsModel, $systemsBodiesModel, $systemsBodiesUsersModel);
@@ -323,6 +325,8 @@ class Report extends Process
             {
                 // Do nothing, user will see it next time!
             }
+
+            $usersReportsModel->getAdapter()->closeConnection();
         }
 
         unset($usersReportsModel, $usersBadgesModel, $usersFriendsModel);

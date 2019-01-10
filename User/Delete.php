@@ -302,7 +302,6 @@ class Delete extends Process
                 // FINAL
                 if($userToHandle['isMarkedForDeletion'] == 1)
                 {
-                    $usersModel = new \Models_Users;
                     $usersModel->deleteById($userToHandle['id']);
 
                     // Send delete email
@@ -326,12 +325,10 @@ class Delete extends Process
                         // Do nothing, user is gone anyway :)
                     }
 
-                    unset($usersModel);
                     static::log('    - ' . $userToHandle['commanderName'] . ' deleted.');
                 }
                 elseif($userToHandle['isMarkedForClearing'] == 1)
                 {
-                    $usersModel = new \Models_Users;
                     $usersModel->updateById($userToHandle['id'], array('isMarkedForClearing' => 0));
 
                     // Send delete email
@@ -355,11 +352,14 @@ class Delete extends Process
                         // Do nothing, user will see when he comes back :)
                     }
 
-                    unset($usersModel);
                     static::log('    - ' . $userToHandle['commanderName'] . ' cleared.');
                 }
+
+                $usersModel->getAdapter()->closeConnection();
             }
         }
+
+        unset($usersModel);
 
         return;
     }
