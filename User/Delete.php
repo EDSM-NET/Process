@@ -30,6 +30,11 @@ class Delete extends Process
 
             foreach($users AS $userToHandle)
             {
+                // Delete codex reports
+                $model  = new \Models_Codex_Reports;
+                $model->deleteByRefUser($userToHandle['id']);
+                unset($model);
+
                 // Delete all user alerts
                 $model  = new \Models_Users_Alerts;
                 $values = $model->getByRefUser($userToHandle['id']);
