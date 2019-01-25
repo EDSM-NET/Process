@@ -11,7 +11,6 @@ use         Process\Process;
 class ApproachSettlement extends Process
 {
     static protected $limit         = 10;
-    static protected $lastModified  = array();
 
     static public function run()
     {
@@ -20,7 +19,6 @@ class ApproachSettlement extends Process
 
         foreach($journalEntries AS $entry)
         {
-            $entry = $entry->toArray();
             $entry['message'] = \Zend_Json::decode($entry['message']);
 
             // Find current station
@@ -61,7 +59,7 @@ class ApproachSettlement extends Process
                             }
                         }
 
-                        if(count($tempCoordinates) >= 100)
+                        if(count($tempCoordinates) >= 50)
                         {
                             $tempCoordinates    = static::getCenter($tempCoordinates);
 
@@ -125,6 +123,13 @@ class ApproachSettlement extends Process
                                             ->where('event = ?', 'ApproachSettlement')
                                             ->order('RAND()');
 
-        return $journalModels->fetchAll($journalEntries);
+        $results            = $journalModels->fetchAll($journalEntries);
+
+        if(!is_null($results) && count($results) > 0)
+        {
+            return $results->toArray();
+        }
+
+        return array();
     }
 }

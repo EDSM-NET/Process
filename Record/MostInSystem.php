@@ -13,7 +13,7 @@ class MostInSystem extends Process
     static private $cacheKey = 'Statistics_BodiesController_MostInSystem%GROUPNAME%_%TYPE%';
     static private $exclude     = array(
         1 => array( // Stars
-            91,     // Neutron stars
+            //91,     // Neutron stars
         ),
         2 => array( // Planets
 

@@ -35,6 +35,11 @@ class Delete extends Process
                 $model->deleteByRefUser($userToHandle['id']);
                 unset($model);
 
+                // Delete codex traits
+                $model  = new \Models_Codex_Traits;
+                $model->deleteByRefUser($userToHandle['id']);
+                unset($model);
+
                 // Delete all user alerts
                 $model  = new \Models_Users_Alerts;
                 $values = $model->getByRefUser($userToHandle['id']);

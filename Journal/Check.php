@@ -10,13 +10,13 @@ use         Process\Process;
 
 class Check extends Process
 {
-    static protected $limit         = 15000;
+    static protected $limit         = 5000;
     static protected $lastModified  = array();
 
     static public function run()
     {
         $journalModels      = new \Models_Journal;
-        $journalEntries     = self::getEntries();
+        $journalEntries     = static::getEntries();
 
         $nbSkip             = 0;
         $nbDeleted          = 0;
@@ -24,7 +24,6 @@ class Check extends Process
 
         foreach($journalEntries AS $entry)
         {
-            $entry = $entry->toArray();
             $entry['message'] = \Zend_Json::decode($entry['message']);
 
             if(!in_array($entry['event'], \Journal\Discard::$events))
@@ -55,6 +54,16 @@ class Check extends Process
                     }
                 }
 
+                // Add json to Sentry extra context
+                $registry = \Zend_Registry::getInstance();
+                if($registry->offsetExists('sentryClient'))
+                {
+                    $sentryClient = $registry->offsetGet('sentryClient');
+                    $sentryClient->extra_context(array(
+                        'json' => $entry['message'],
+                    ));
+                }
+
                 // Call the event class
                 $eventClass::resetReturnMessage();
                 $eventClass::setUser(\Component\User::getInstance($entry['refUser']));
@@ -80,7 +89,6 @@ class Check extends Process
                 else
                 {
                     $nbSkip++;
-                    //\Zend_Debug::dump($return);
                 }
             }
             else
@@ -114,9 +122,15 @@ class Check extends Process
         $journalEntries     = $journalModels->select()
                                             ->limit(static::$limit)
                                             ->where('event != ?', 'Scan')
-                                            ->where('event != ?', 'SAAScanComplete')
                                             ->order('RAND()');
 
-        return $journalModels->fetchAll($journalEntries);
+        $results            = $journalModels->fetchAll($journalEntries);
+
+        if(!is_null($results) && count($results) > 0)
+        {
+            return $results->toArray();
+        }
+
+        return array();
     }
 }
