@@ -25,6 +25,9 @@ class SystemsWithoutCoordinates extends Process
         $systemsModel       = new \Models_Systems;
         $systemsHidesModel  = new \Models_Systems_Hides;
 
+        // Disable cache
+        $systemsModel->disableCache();
+
         // Fill an array with all days from start to yesterday
         $startDate  = strtotime('2015-05-12');
         $endDate    = strtotime('yesterday');

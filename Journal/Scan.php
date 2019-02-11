@@ -10,7 +10,7 @@ use         Process\Process;
 
 class Scan extends Check
 {
-    static protected $limit         = 10000;
+    static protected $limit         = 5000;
 
     protected static function getEntries()
     {
@@ -33,7 +33,7 @@ class Scan extends Check
 
             if(!is_null($resultsTmp) && count($resultsTmp) > 0)
             {
-                $limit   -= count($resultsTmp);
+                //$limit   -= count($resultsTmp);
                 static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Selected ' . \Zend_Locale_Format::toNumber(count($resultsTmp)) . ' prioritary scan events');
                 $results = array_merge($results, $resultsTmp->toArray());
             }
@@ -51,7 +51,7 @@ class Scan extends Check
 
             if(!is_null($resultsTmp) && count($resultsTmp) > 0)
             {
-                $limit   -= count($resultsTmp);
+                //$limit   -= count($resultsTmp);
                 static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Selected ' . \Zend_Locale_Format::toNumber(count($resultsTmp)) . ' old scan events');
 
                 $results = array_merge($results, $resultsTmp->toArray());

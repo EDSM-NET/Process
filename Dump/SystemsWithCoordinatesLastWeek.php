@@ -27,6 +27,9 @@ class SystemsWithCoordinatesLastWeek extends Process
         $systemsModel       = new \Models_Systems;
         $systemsHidesModel  = new \Models_Systems_Hides;
 
+        // Disable cache
+        $systemsModel->disableCache();
+
         $select       = $systemsModel->select()
                                      ->from($systemsModel, array('id'))
                                      ->where('x IS NOT NULL')

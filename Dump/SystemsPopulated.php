@@ -16,7 +16,7 @@ class SystemsPopulated extends Process
     static private $tempFile        = APPLICATION_PATH . '/Data/Temp/systemsPopulated.json';
     static private $finalFile       = PUBLIC_PATH . '/dump/systemsPopulated.json';
 
-    static private $countPerPages   = 1000;
+    static private $countPerPages   = 5000;
 
     static public function run()
     {
