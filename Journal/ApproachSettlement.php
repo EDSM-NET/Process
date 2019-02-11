@@ -67,7 +67,7 @@ class ApproachSettlement extends Process
 
                             foreach($results AS $result)
                             {
-                                $journalModels->deleteById($result['id']);
+                                $journalModels->deleteByRefUserEventAndDateEvent($result['refUser'], $result['event'], $result['dateEvent']);
                             }
 
                             static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Saved ' . $station->getName() . ' (#' . $station->getId() . ') coordinates');

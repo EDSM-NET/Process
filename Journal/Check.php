@@ -84,7 +84,7 @@ class Check extends Process
                 if($eventClass != 'Journal\Event' && $eventClass::isOK() === true && in_array($return['msgnum'], [100, 101, 102]))
                 {
                     $nbDeleted++;
-                    $journalModels->deleteById($entry['id']);
+                    $journalModels->deleteByRefUserEventAndDateEvent($entry['refUser'], $entry['event'], $entry['dateEvent']);
                 }
                 else
                 {
@@ -94,7 +94,7 @@ class Check extends Process
             else
             {
                 $nbDiscarded++;
-                $journalModels->deleteById($entry['id']);
+                $journalModels->deleteByRefUserEventAndDateEvent($entry['refUser'], $entry['event'], $entry['dateEvent']);
             }
         }
 
