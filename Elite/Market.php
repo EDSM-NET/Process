@@ -27,6 +27,7 @@ class Market extends Process
                 $stationsModel->select()->from($stationsModel, array(
                     'total' => new \Zend_Db_Expr('COUNT(1)')
                 ))
+                ->where('name NOT LIKE "Rescue Ship - %"')
             );
 
             $stationsTotal  = $stationsTotal->total;
@@ -37,6 +38,7 @@ class Market extends Process
                 $stationsModel->select()->from($stationsModel, array(
                     'total' => new \Zend_Db_Expr('COUNT(1)')
                 ))->where('marketUpdateTime IS NOT NULL')
+                ->where('name NOT LIKE "Rescue Ship - %"')
             );
 
             $stationsTotal  = $stationsTotal->total;
@@ -54,6 +56,7 @@ class Market extends Process
                         'total' => new \Zend_Db_Expr('COUNT(1)')
                     ))->where('marketUpdateTime >= DATE_SUB(?, INTERVAL ' . $interval . ')', $yesterdayDate)
                     ->where('marketUpdateTime IS NOT NULL')
+                    ->where('name NOT LIKE "Rescue Ship - %"')
                 );
                 $stationsCurrent  = $stationsCurrent->total;
 
@@ -65,6 +68,7 @@ class Market extends Process
         $stationOldest  = $stationsModel->fetchRow(
             $stationsModel->select()
                           ->where('marketUpdateTime IS NOT NULL')
+                          ->where('name NOT LIKE "Rescue Ship - %"')
                           ->order('marketUpdateTime ASC')
                           ->limit(1)
         );
@@ -85,9 +89,9 @@ class Market extends Process
         static::getDatabaseFileCache()->save($stationOldest->getId(), $cacheKey);
 
         // Send tweet if it's ok from main process
-        if(self::$sendTweet === true)
+        if(static::$sendTweet === true)
         {
-            \EDSM_Api_Tweet::status(implode(PHP_EOL, $tweet));
+            $return = \EDSM_Api_Tweet::status(implode(PHP_EOL, $tweet));
         }
 
         unset($stationsModel, $tweet);
