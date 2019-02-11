@@ -40,6 +40,11 @@ class Delete extends Process
                 $model->deleteByRefUser($userToHandle['id']);
                 unset($model);
 
+                // Delete exploration values
+                $model  = new \Models_Users_Exploration_Values;
+                $model->deleteByRefUser($userToHandle['id']);
+                unset($model);
+
                 // Delete all user alerts
                 $model  = new \Models_Users_Alerts;
                 $values = $model->getByRefUser($userToHandle['id']);
@@ -312,6 +317,11 @@ class Delete extends Process
                 // FINAL
                 if($userToHandle['isMarkedForDeletion'] == 1)
                 {
+                    // Delete users fingerprint
+                    $model  = new \Models_Users_Fingerprint;
+                    $model->deleteByRefUser($userToHandle['id']);
+                    unset($model);
+
                     $usersModel->deleteById($userToHandle['id']);
 
                     // Send delete email
