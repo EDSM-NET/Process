@@ -72,7 +72,7 @@ class SystemsWithoutCoordinates extends Process
 
                     if(is_null($system['id64']))
                     {
-                        $id64       = $systemTmp->getId64FromEDTS();
+                        $id64       = $systemTmp->calculateId64();
 
                         if(!is_null($id64))
                         {
@@ -106,15 +106,15 @@ class SystemsWithoutCoordinates extends Process
 
                     $tmpSystem['name']              = $system['name'];
 
-                    $estimatedCoordinates = $systemTmp->getFromEDTS(true);
+                    $estimatedCoordinates = $systemTmp->getEstimatedCoordinates();
 
                     if(!is_null($estimatedCoordinates) && is_array($estimatedCoordinates))
                     {
                         $tmpSystem['estimatedCoordinates'] = array(
-                            'x'         => (float) $estimatedCoordinates[0],
-                            'y'         => (float) $estimatedCoordinates[1],
-                            'z'         => (float) $estimatedCoordinates[2],
-                            'precision' => (float) $estimatedCoordinates[4],
+                            'x'         => (float) $estimatedCoordinates['x'],
+                            'y'         => (float) $estimatedCoordinates['y'],
+                            'z'         => (float) $estimatedCoordinates['z'],
+                            'precision' => (float) $estimatedCoordinates['uncertainty'],
                         );
                     }
 

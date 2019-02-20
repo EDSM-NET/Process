@@ -81,7 +81,7 @@ class SystemsWithCoordinatesLastWeek extends Process
 
                     if(is_null($id64))
                     {
-                        $id64 = $system->getId64FromEDTS();
+                        $id64 = $system->calculateId64();
 
                         if(!is_null($id64))
                         {
