@@ -10,7 +10,7 @@ use         Process\Process;
 
 class Scan extends Check
 {
-    static protected $limit         = 5000;
+    static protected $limit         = 1000;
 
     protected static function getEntries()
     {

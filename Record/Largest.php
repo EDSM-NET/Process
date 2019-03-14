@@ -67,7 +67,7 @@ class Largest extends Process
                                         ->where('`group` = ?', $group)
                                         ->where('`type` = ?', $type)
                                         ->where('radius > ?', 1000)
-                                        ->where('DATE(dateUpdated) > ?', '2016-11-01')
+                                        ->where('dateUpdated > ?', '2016-11-01 23:59:59')
                                         ->order('radius DESC')
                                         ->limit(3);
         $result     = $systemsBodiesModel->fetchAll($select);
@@ -82,6 +82,8 @@ class Largest extends Process
 
             $result = $result->toArray();
             static::getDatabaseFileCache()->save($result[0], $cacheKey);
+
+            \Zend_Debug::dump($result);
 
             // Give badge to all retroactive users
             foreach($result AS $record)

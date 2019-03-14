@@ -41,20 +41,6 @@ class Body extends Process
         );
         $maxId  = $maxId->id;
 
-        // Generate hidden system array
-        $hiddenSystems      = array();
-        $tmpHiddenSystems   = $systemsHidesModel->fetchAll();
-
-        foreach($tmpHiddenSystems AS $hiddenSystem)
-        {
-            if(!in_array($hiddenSystem->refSystem, $hiddenSystems))
-            {
-                $hiddenSystems[] = $hiddenSystem->refSystem;
-            }
-        }
-
-        unset($tmpHiddenSystems);
-
         // Start temp file
         file_put_contents(static::$tempFile, '[' . PHP_EOL);
         $line       = 0;
@@ -62,6 +48,8 @@ class Body extends Process
 
         while($currentId < $maxId)
         {
+            $startTime      = time();
+
             static::log('    - ' . \Zend_Locale_Format::toNumber($currentId / $maxId * 100, array('precision' => 2)) . '% (Current ID: ' . $currentId . ')');
 
             $select     = $systemsBodiesModel->select()
@@ -78,21 +66,24 @@ class Body extends Process
                                                  )
                                              )
                                              ->joinInner($systemsModel->info('name'), $systemsBodiesModel->info('name') . '.refSystem = ' . $systemsModel->info('name') . '.id', null)
+                                             ->joinLeft($systemsHidesModel->info('name'), $systemsModel->info('name') . '.id = ' . $systemsHidesModel->info('name') . '.refSystem')
+                                             ->where($systemsHidesModel->info('name') . '.refSystem IS NULL')
+
                                              ->joinLeft($systemsBodiesOrbitalModel->info('name'), $systemsBodiesModel->info('name') . '.id = ' . $systemsBodiesOrbitalModel->info('name') . '.refBody')
                                              ->joinLeft($systemsBodiesSurfaceModel->info('name'), $systemsBodiesModel->info('name') . '.id = ' . $systemsBodiesSurfaceModel->info('name') . '.refBody')
                                              ->joinLeft($systemsBodiesParentsModel->info('name'), $systemsBodiesModel->info('name') . '.id = ' . $systemsBodiesParentsModel->info('name') . '.refBody')
+
                                              ->where($systemsBodiesModel->info('name') . '.id > ?', $currentId)
                                              ->where($systemsBodiesModel->info('name') . '.id <= ?', $maxId)
-                                             ->where($systemsBodiesModel->info('name') . '.refSystem NOT IN(?)', $hiddenSystems)
                                              ->order($systemsBodiesModel->info('name') . '.id ASC')
                                              ->limit(static::$limit);
 
-            $bodies     = $systemsBodiesModel->fetchAll($select);
+            $bodies     = $systemsBodiesModel->getAdapter()->fetchAll($select);
+
+            static::log('        - Query: ' . \Zend_Locale_Format::toNumber(time() - $startTime) . 's');
 
             if(!is_null($bodies))
             {
-                $bodies = $bodies->toArray();
-
                 foreach($bodies AS $body)
                 {
                     $currentId  = $body['id'];
@@ -101,14 +92,12 @@ class Body extends Process
                     $systemName = $body['systemName'];
 
                     $body       = \EDSM_System_Body::getInstance($body['id'], $body);
-                    $tmpBody    = $body->renderApiArray(true);
+                    //$tmpBody    = $body->renderApiArray(true);
+                    $tmpBody    = $body->renderApiArray();
 
                     $tmpBody['systemId']    = (int) $refSystem;
-                    $tmpBody['systemId64']  = (!is_null($systemId64)) ? (int) $systemId64 : null;;
+                    $tmpBody['systemId64']  = (!is_null($systemId64)) ? (int) $systemId64 : null;
                     $tmpBody['systemName']  = $systemName;
-
-                    //\Zend_Debug::dump($tmpBody);
-                    //exit();
 
                     if($line > 0)
                     {
@@ -120,6 +109,9 @@ class Body extends Process
                     $line++;
                 }
             }
+
+            static::log('        - Total: ' . \Zend_Locale_Format::toNumber(time() - $startTime) . 's');
+            //exit();
         }
 
         file_put_contents(static::$tempFile, PHP_EOL . ']', FILE_APPEND);

@@ -67,7 +67,7 @@ class Coldest extends Process
                                         ->where('`group` = ?', $group)
                                         ->where('`type` = ?', $type)
                                         ->where('surfaceTemperature IS NOT NULL')
-                                        ->where('DATE(dateUpdated) > ?', '2016-11-01')
+                                        ->where('dateUpdated > ?', '2016-11-01 23:59:59')
                                         ->order('surfaceTemperature ASC')
                                         ->limit(3);
         $result     = $systemsBodiesModel->fetchAll($select);

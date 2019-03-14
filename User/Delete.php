@@ -99,13 +99,13 @@ class Delete extends Process
 
                 // Delete all user credits
                 $model  = new \Models_Users_Credits;
-                $values = $model->fetchAll($model->select()->from($model, array('id'))->where('refUser = ?', $userToHandle['id']));
+                $values = $model->fetchAll($model->select()->from($model, array('refUser', 'reason', 'balance', 'dateUpdated'))->where('refUser = ?', $userToHandle['id']));
 
                 if(!is_null($values) && count($values) > 0)
                 {
                     foreach($values AS $value)
                     {
-                        $model->deleteById($value['id']);
+                        $model->deleteLine($value['refUser'], $value['reason'], $value['balance'], $value['dateUpdated']);
                     }
                 }
                 unset($model, $values);

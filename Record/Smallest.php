@@ -67,7 +67,7 @@ class Smallest extends Process
                                         ->where('`group` = ?', $group)
                                         ->where('`type` = ?', $type)
                                         ->where('radius > ?', 500)
-                                        ->where('DATE(dateUpdated) > ?', '2016-11-01')
+                                        ->where('dateUpdated > ?', '2016-11-01 23:59:59')
                                         ->order('radius ASC')
                                         ->limit(3);
         $result     = $systemsBodiesModel->fetchAll($select);
