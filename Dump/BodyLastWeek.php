@@ -96,7 +96,7 @@ class BodyLastWeek extends Process
                                                  )
                                              )
                                              ->joinInner($systemsModel->info('name'), $systemsBodiesModel->info('name') . '.refSystem = ' . $systemsModel->info('name') . '.id', null)
-                                             ->joinLeft($systemsHidesModel->info('name'), $systemsModel->info('name') . '.id = ' . $systemsHidesModel->info('name') . '.refSystem')
+                                             ->joinLeft($systemsHidesModel->info('name'), $systemsModel->info('name') . '.id = ' . $systemsHidesModel->info('name') . '.refSystem', null)
                                              ->where($systemsHidesModel->info('name') . '.refSystem IS NULL')
 
                                              ->joinLeft($systemsBodiesOrbitalModel->info('name'), $systemsBodiesModel->info('name') . '.id = ' . $systemsBodiesOrbitalModel->info('name') . '.refBody')
