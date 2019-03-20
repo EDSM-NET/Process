@@ -44,10 +44,9 @@ class Report extends Process
             if(APPLICATION_DEBUG !== true)
             {
                 static::fillDatabase();
-                return;
             }
 
-            if(date('N') == 1 && date('W') % 2 == 0 || APPLICATION_DEBUG === true) // Send on Monday every 2 weeks
+            if(in_array(date('d'), static::$sendReportOn) || APPLICATION_DEBUG === true)
             {
                 static::sendReports();
             }
@@ -62,6 +61,7 @@ class Report extends Process
         $systemsLogsModel           = new \Models_Systems_Logs;
         $systemsBodiesModel         = new \Models_Systems_Bodies;
         $systemsBodiesUsersModel    = new \Models_Systems_Bodies_Users;
+        $systemsBodiesUsersSAAModel = new \Models_Systems_Bodies_UsersSAA;
 
         foreach(static::$users AS $userToHandle)
         {
@@ -118,6 +118,19 @@ class Report extends Process
 
                 $values                     = $systemsBodiesUsersModel->fetchRow($select)->toArray();
                 $update['nbScannedPlanets'] = (int) $values['totalScan'];
+
+                $select = $systemsBodiesUsersSAAModel->select()
+                                                   ->from($systemsBodiesUsersSAAModel, array(
+                                                        'totalScan'         => new \Zend_Db_Expr('COUNT(1)'),
+                                                   ))
+                                                   ->setIntegrityCheck(false)
+                                                   ->joinInner($systemsBodiesModel->info('name'), 'refBody = id', null)
+                                                   ->where($systemsBodiesUsersSAAModel->info('name') . '.refUser = ?', $userToHandle['id'])
+                                                   ->where('`group` = ?', 2)
+                                                   ->where('DATE(dateScanned) = ?', $dateReport);
+
+                $values                     = $systemsBodiesUsersSAAModel->fetchRow($select)->toArray();
+                $update['nbMappedPlanets']  = (int) $values['totalScan'];
 
                 // Save
                 $currentReport                          = $usersReportsModel->fetchRow(
@@ -185,6 +198,10 @@ class Report extends Process
                 'betterScannedPlanets'          => 0,
                 'worstScannedPlanets'           => 999999999999999,
 
+                'totalMappedPlanets'            => 0,
+                'betterMappedPlanets'           => 0,
+                'worstMappedPlanets'            => 999999999999999,
+
                 'topFriends'                    => array(),
                 'lastBadges'                    => array(),
             );
@@ -197,18 +214,21 @@ class Report extends Process
                 $variables['totalDistance']        += $report['nbDistance'];
                 $variables['totalScannedStars']    += $report['nbScannedStars'];
                 $variables['totalScannedPlanets']  += $report['nbScannedPlanets'];
+                $variables['totalMappedPlanets']   += $report['nbMappedPlanets'];
 
                 $variables['betterFlightLogs']      = max($variables['betterFlightLogs'], $report['nbFlightLogs']);
                 $variables['betterFuel']            = max($variables['betterFuel'], $report['nbFuel']);
                 $variables['betterDistance']        = max($variables['betterDistance'], $report['nbDistance']);
                 $variables['betterScannedStars']    = max($variables['betterScannedStars'], $report['nbScannedStars']);
                 $variables['betterScannedPlanets']  = max($variables['betterScannedPlanets'], $report['nbScannedPlanets']);
+                $variables['betterMappedPlanets']   = max($variables['betterMappedPlanets'], $report['nbMappedPlanets']);
 
                 $variables['worstFlightLogs']       = min($variables['worstFlightLogs'], $report['nbFlightLogs']);
                 $variables['worstFuel']             = min($variables['worstFuel'], $report['nbFuel']);
                 $variables['worstDistance']         = min($variables['worstDistance'], $report['nbDistance']);
                 $variables['worstScannedStars']     = min($variables['worstScannedStars'], $report['nbScannedStars']);
                 $variables['worstScannedPlanets']   = min($variables['worstScannedPlanets'], $report['nbScannedPlanets']);
+                $variables['worstMappedPlanets']    = min($variables['worstMappedPlanets'], $report['nbMappedPlanets']);
 
                 if($variables['betterFlightLogs'] == $report['nbFlightLogs'])
                 {
@@ -225,6 +245,7 @@ class Report extends Process
             $variables['averageDistance']           = $variables['totalDistance'] / 7;
             $variables['averageScannedStars']       = round($variables['totalScannedStars'] / 7);
             $variables['averageScannedPlanets']     = round($variables['totalScannedPlanets'] / 7);
+            $variables['averageMappedPlanets']      = round($variables['totalMappedPlanets'] / 7);
 
             // Skip user with 0ly
             if($variables['totalDistance'] == 0)
@@ -310,7 +331,7 @@ class Report extends Process
 
                 if(APPLICATION_DEBUG === true)
                 {
-                    $mail->addTo('anthor.net@gmail.com');
+                    $mail->addTo(\Component\User::getInstance(952)->getEmail());
                     echo $mail->send(false);
                     exit();
                 }
