@@ -180,8 +180,16 @@ class Delete extends Process
                 }
                 unset($model, $values);
 
-                // Delete user token
-                $model  = new \Models_Users_FrontierAuth;
+                // Delete user token (ONLY ON DELETE)
+                if($userToHandle['isMarkedForDeletion'] == 1)
+                {
+                    $model  = new \Models_Users_FrontierAuth;
+                    $model->deleteByRefUser($userToHandle['id']);
+                    unset($model);
+                }
+
+                // Delete user console status
+                $model  = new \Models_Users_Console_Journal;
                 $model->deleteByRefUser($userToHandle['id']);
                 unset($model);
 
