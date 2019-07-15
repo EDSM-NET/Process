@@ -127,7 +127,7 @@ class Report extends Process
                                                    ->joinInner($systemsBodiesModel->info('name'), 'refBody = id', null)
                                                    ->where($systemsBodiesUsersSAAModel->info('name') . '.refUser = ?', $userToHandle['id'])
                                                    ->where('`group` = ?', 2)
-                                                   ->where('DATE(dateScanned) = ?', $dateReport);
+                                                   ->where('DATE(dateMapped) = ?', $dateReport);
 
                 $values                     = $systemsBodiesUsersSAAModel->fetchRow($select)->toArray();
                 $update['nbMappedPlanets']  = (int) $values['totalScan'];
@@ -240,12 +240,12 @@ class Report extends Process
                 }
             }
 
-            $variables['averageFlightLogs']         = round($variables['totalFlightLogs'] / 7);
-            $variables['averageFuel']               = $variables['totalFuel'] / 7;
-            $variables['averageDistance']           = $variables['totalDistance'] / 7;
-            $variables['averageScannedStars']       = round($variables['totalScannedStars'] / 7);
-            $variables['averageScannedPlanets']     = round($variables['totalScannedPlanets'] / 7);
-            $variables['averageMappedPlanets']      = round($variables['totalMappedPlanets'] / 7);
+            $variables['averageFlightLogs']         = round($variables['totalFlightLogs'] / static::$period);
+            $variables['averageFuel']               = $variables['totalFuel'] / static::$period;
+            $variables['averageDistance']           = $variables['totalDistance'] / static::$period;
+            $variables['averageScannedStars']       = round($variables['totalScannedStars'] / static::$period);
+            $variables['averageScannedPlanets']     = round($variables['totalScannedPlanets'] / static::$period);
+            $variables['averageMappedPlanets']      = round($variables['totalMappedPlanets'] / static::$period);
 
             // Skip user with 0ly
             if($variables['totalDistance'] == 0)
