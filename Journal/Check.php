@@ -124,13 +124,6 @@ class Check extends Process
                                             ->where('event != ?', 'Scan')
                                             ->order('RAND()');
 
-        $results            = $journalModels->fetchAll($journalEntries);
-
-        if(!is_null($results) && count($results) > 0)
-        {
-            return $results->toArray();
-        }
-
-        return array();
+        return $journalModels->getAdapter()->fetchAll($journalEntries);
     }
 }

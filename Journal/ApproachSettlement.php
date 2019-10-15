@@ -21,6 +21,11 @@ class ApproachSettlement extends Process
         {
             $entry['message'] = \Zend_Json::decode($entry['message']);
 
+            if(!array_key_exists('MarketID', $entry['message']))
+            {
+                $journalModels->deleteByRefUserEventAndDateEvent($entry['refUser'], $entry['event'], $entry['dateEvent']);
+            }
+
             // Find current station
             $stationsModel  = new \Models_Stations;
             $station        = $stationsModel->getByMarketId($entry['message']['MarketID']);
@@ -123,13 +128,6 @@ class ApproachSettlement extends Process
                                             ->where('event = ?', 'ApproachSettlement')
                                             ->order('RAND()');
 
-        $results            = $journalModels->fetchAll($journalEntries);
-
-        if(!is_null($results) && count($results) > 0)
-        {
-            return $results->toArray();
-        }
-
-        return array();
+        return $journalModels->getAdapter()->fetchAll($journalEntries);
     }
 }
