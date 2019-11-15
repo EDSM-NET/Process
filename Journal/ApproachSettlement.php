@@ -24,6 +24,7 @@ class ApproachSettlement extends Process
             if(!array_key_exists('MarketID', $entry['message']))
             {
                 $journalModels->deleteByRefUserEventAndDateEvent($entry['refUser'], $entry['event'], $entry['dateEvent']);
+                continue;
             }
 
             // Find current station
