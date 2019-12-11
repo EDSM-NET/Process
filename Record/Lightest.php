@@ -41,25 +41,44 @@ class Lightest extends Process
         }
 
         // Make record query
-        $select     = $systemsBodiesModel->select()
-                                        ->from($systemsBodiesModel, array(
-                                            'id',
-                                        ))
-                                        ->setIntegrityCheck(false)
-                                        ->joinInner(
-                                            $systemsBodiesSurfaceModel->info('name'),
-                                            $systemsBodiesSurfaceModel->info('name') . '.refBody = ' . $systemsBodiesModel->info('name') . '.id',
-                                            null
-                                        )
-                                        ->where('`group` = ?', $group)
-                                        ->where('`type` = ?', $type)
-                                        ->where('mass > ?', 0)
-                                        ->where('dateUpdated > ?', '2016-11-01 23:59:59')
-                                        ->order('mass ASC')
-                                        ->limit(3);
-        $result     = $systemsBodiesModel->fetchAll($select);
+        $result         = array();
+        $elasticClient  = \Process\Body\Elastic::getClient();
+        $elasticResults = $elasticClient->search([
+            'index'     => \Process\Body\Elastic::$elasticConfig->bodyIndex,
+            'type'      => '_doc',
+            'body'      => [
+                'size'          => 3,
+                'from'          => 0,
+                'stored_fields' => [],
+                '_source'       => ['bodyId'],
+                'query'         => [
+                    'bool' => [
+                        'filter'        => [
+                            array('term' => ['mainType' => (int) $group]),
+                            array('term' => ['subType' => (int) $type]),
+                        ]
+                    ]
+                ],
+                'sort'          => ['mass' => ['order' => 'asc']]
+            ]
+        ]);
 
-        if(!is_null($result) && count($result) > 0)
+        if(is_array($elasticResults) && count($elasticResults['hits']['hits']) > 0)
+        {
+            foreach($elasticResults['hits']['hits'] AS $hit)
+            {
+                if(array_key_exists('bodyId', $hit['_source']))
+                {
+                    $result[] = array('id' => (int) $hit['_source']['bodyId']);
+                }
+                else
+                {
+                    $result[] = array('id' => (int) $hit['_id']);
+                }
+            }
+        }
+
+        if(count($result) > 0)
         {
             $cacheKey   = str_replace(
                 array('%GROUPNAME%', '%TYPE%'),
@@ -67,7 +86,6 @@ class Lightest extends Process
                 static::$cacheKey
             );
 
-            $result = $result->toArray();
             static::getDatabaseFileCache()->save($result[0], $cacheKey);
 
             // Give badge to all retroactive users
