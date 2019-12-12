@@ -22,9 +22,7 @@ class Hottest extends Process
 
     static public function run()
     {
-        list($group, $type)         = func_get_args();
-        $systemsBodiesModel         = new \Models_Systems_Bodies;
-        $systemsBodiesSurfaceModel  = new \Models_Systems_Bodies_Surface;
+        list($group, $type) = func_get_args();
 
         if($group == 1)
         {
@@ -98,7 +96,6 @@ class Hottest extends Process
                 array($groupName, $type),
                 static::$cacheKey
             );
-
             static::getDatabaseFileCache()->save($result[0], $cacheKey);
 
             // Give badge to all retroactive users
@@ -121,9 +118,7 @@ class Hottest extends Process
 
         static::log('<span class="text-info">Record\Hottest:</span> ' . $groupName . ' ' . $typeName);
 
-        $systemsBodiesModel->getAdapter()->closeConnection();
         unset($group, $type, $groupName, $typeName);
-        unset($systemsBodiesModel, $systemsBodiesSurfaceModel);
         unset($result);
 
         return;

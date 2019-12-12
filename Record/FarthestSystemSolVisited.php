@@ -14,24 +14,66 @@ class FarthestSystemSolVisited extends Process
 
     static public function run()
     {
-        $systemsModel               = new \Models_Systems;
-
         // Make record query
-        $select = $systemsModel->select()
-                               ->from(
-                                   $systemsModel, array(
-                                        'id',
-                                        'calculatedDistance' => new \Zend_Db_Expr('SQRT(POW((x / 32), 2) + POW((y / 32), 2) + POW((z / 32), 2)) * 100')
-                                   ))
-                               ->where('z > 2100000')
-                               ->where('firstDiscoveredBy IS NOT NULL')
-                               ->order('calculatedDistance DESC')
-                               ->limit(3);
-        $result     = $systemsModel->fetchAll($select);
+        $result         = array();
+        $sortSystem     = \Component\System::getInstance(27);
+        $elasticClient  = \Process\Body\Elastic::getClient();
+        $elasticResults = $elasticClient->search([
+            'index'     => \Process\Body\Elastic::$elasticConfig->bodyIndex,
+            'type'      => '_doc',
+            'body'      => [
+                'size'          => 3,
+                'from'          => 0,
+                'stored_fields' => [],
+                '_source'       => ['bodyId', 'systemName'],
+                /*
+                'query'         => [
+                    'bool' => [
+                        'filter'        => [
+                            array('term' => ['mainType' => (int) $group]),
+                            array('term' => ['subType' => (int) $type]),
+                        ]
+                    ]
+                ],
+                */
+                'collapse'      => ['field' => 'systemName'],
+                'sort'          => ['_script' => [
+                    'type'          => 'number',
+                    'order'         => 'desc',
+                    'script'        => [
+                        'lang'          => 'painless',
+                        'source'        => 'double x = (doc["systemX"].value / 32 - params.sortSystemX);double y = (doc["systemY"].value / 32 - params.sortSystemY);double z = (doc["systemZ"].value / 32 - params.sortSystemZ);double distance = (x*x+y*y+z*z);return distance;',
+                        'params'        => [
+                            'sortSystemX'   => $sortSystem->getX() / 32,
+                            'sortSystemY'   => $sortSystem->getY() / 32,
+                            'sortSystemZ'   => $sortSystem->getZ() / 32,
+                        ]
+                    ]
+                ]]
+            ]
+        ]);
 
-        if(!is_null($result))
+        if(is_array($elasticResults) && count($elasticResults['hits']['hits']) > 0)
         {
-            $result = $result->toArray();
+            $systemsModel               = new \Models_Systems;
+
+            foreach($elasticResults['hits']['hits'] AS $hit)
+            {
+                $systemId = $systemsModel->getByName($hit['_source']['systemName']);
+
+                if(array_key_exists('bodyId', $hit['_source']))
+                {
+                    $result[] = array('id' => $systemId['id'], 'calculatedDistance' => (float) sqrt($hit['sort'][0]) * 100);
+                }
+                else
+                {
+                    $result[] = array('id' => $systemId['id'], 'calculatedDistance' => (float) sqrt($hit['sort'][0]) * 100);
+                }
+            }
+        }
+
+        if(count($result) > 0)
+        {
             static::getDatabaseFileCache()->save($result[0], static::$cacheKey);
 
             // Give badge to all retroactive users

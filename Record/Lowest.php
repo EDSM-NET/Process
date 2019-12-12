@@ -14,9 +14,7 @@ class Lowest extends Process
 
     static public function run()
     {
-        list($group, $type)         = func_get_args();
-        $systemsModel               = new \Models_Systems;
-        $systemsBodiesModel         = new \Models_Systems_Bodies;
+        list($group, $type) = func_get_args();
 
         if($group == 1)
         {
@@ -85,7 +83,6 @@ class Lowest extends Process
                 array($groupName, $type),
                 static::$cacheKey
             );
-
             static::getDatabaseFileCache()->save($result[0], $cacheKey);
 
             // Give badge to all retroactive users
@@ -108,9 +105,7 @@ class Lowest extends Process
 
         static::log('<span class="text-info">Record\Lowest:</span> ' . $groupName . ' ' . $typeName);
 
-        $systemsBodiesModel->getAdapter()->closeConnection();
         unset($group, $type, $groupName, $typeName);
-        unset($systemsBodiesModel, $systemsBodiesSurfaceModel);
         unset($result);
 
         return;
