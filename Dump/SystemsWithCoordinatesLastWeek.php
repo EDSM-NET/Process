@@ -11,7 +11,7 @@ use         Process\Process;
 class SystemsWithCoordinatesLastWeek extends Process
 {
     static private $tempFile        = APPLICATION_PATH . '/Data/Temp/systemsWithCoordinates7days.json';
-    static private $finalFile       = PUBLIC_PATH . '/dump/systemsWithCoordinates7days.json';
+    static private $finalFile       = PUBLIC_PATH . '/dump/systemsWithCoordinates7days.json.gz';
 
     static private $countPerPages   = 25000;
 
@@ -56,7 +56,8 @@ class SystemsWithCoordinatesLastWeek extends Process
 
             $paginator->setCurrentPageNumber( $i );
 
-            $systems = $paginator->getCurrentItems()->toArray();
+            $dumpStr    = '';
+            $systems    = $paginator->getCurrentItems()->toArray();
 
             foreach($systems AS $system)
             {
@@ -107,23 +108,41 @@ class SystemsWithCoordinatesLastWeek extends Process
 
                     if($key > 0)
                     {
-                        file_put_contents(static::$tempFile, ',' . PHP_EOL, FILE_APPEND);
+                        $dumpStr .= ',' . PHP_EOL;
                     }
 
-                    file_put_contents(static::$tempFile, '    ' . \Zend_Json::encode($tmpSystem), FILE_APPEND);
+                    $dumpStr .= '    ' . \Zend_Json::encode($tmpSystem);
 
                     $key++;
                 }
             }
+
+            file_put_contents(static::$tempFile, $dumpStr, FILE_APPEND);
         }
 
         file_put_contents(static::$tempFile, PHP_EOL . ']', FILE_APPEND);
 
-        rename(static::$tempFile, static::$finalFile);
+        $dest = static::$tempFile . '.gz';
+        $mode = 'wb9';
+        if($fp_out = gzopen($dest, $mode))
+        {
+            if($fp_in = fopen(static::$tempFile,'rb'))
+            {
+                while (!feof($fp_in))
+                {
+                    gzwrite($fp_out, fread($fp_in, 1024 * 512));
+                }
+                fclose($fp_in);
+            }
+            gzclose($fp_out);
+        }
+
+        unlink(static::$tempFile);
+        rename($dest, static::$finalFile);
 
         // Add ContentLength JSON
         file_put_contents(
-            str_replace('.json', '.length.json', static::$finalFile),
+            str_replace('.json.gz', '.length.json.gz', static::$finalFile),
             filesize(static::$finalFile)
         );
 

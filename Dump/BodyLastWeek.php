@@ -11,7 +11,7 @@ use         Process\Process;
 class BodyLastWeek extends Process
 {
     static private $tempFile        = APPLICATION_PATH . '/Data/Temp/bodies7days.json';
-    static private $finalFile       = PUBLIC_PATH . '/dump/bodies7days.json';
+    static private $finalFile       = PUBLIC_PATH . '/dump/bodies7days.json.gz';
 
     static private $limit           = 50000;
 
@@ -114,6 +114,8 @@ class BodyLastWeek extends Process
 
             if(!is_null($bodies))
             {
+                $dumpStr = '';
+
                 foreach($bodies AS $body)
                 {
                     $currentId  = $body['id'];
@@ -133,13 +135,15 @@ class BodyLastWeek extends Process
 
                     if($line > 0)
                     {
-                        file_put_contents(static::$tempFile, ',' . PHP_EOL, FILE_APPEND);
+                        $dumpStr .= ',' . PHP_EOL;
                     }
 
-                    file_put_contents(static::$tempFile, '    ' . \Zend_Json::encode($tmpBody), FILE_APPEND);
+                    $dumpStr .= '    ' . \Zend_Json::encode($tmpBody);
 
                     $line++;
                 }
+
+                file_put_contents(static::$tempFile, $dumpStr, FILE_APPEND);
             }
 
             static::log('        - Total: ' . \Zend_Locale_Format::toNumber(time() - $startTime) . 's');
@@ -147,11 +151,27 @@ class BodyLastWeek extends Process
 
         file_put_contents(static::$tempFile, PHP_EOL . ']', FILE_APPEND);
 
-        rename(static::$tempFile, static::$finalFile);
+        $dest = static::$tempFile . '.gz';
+        $mode = 'wb9';
+        if($fp_out = gzopen($dest, $mode))
+        {
+            if($fp_in = fopen(static::$tempFile,'rb'))
+            {
+                while (!feof($fp_in))
+                {
+                    gzwrite($fp_out, fread($fp_in, 1024 * 512));
+                }
+                fclose($fp_in);
+            }
+            gzclose($fp_out);
+        }
+
+        unlink(static::$tempFile);
+        rename($dest, static::$finalFile);
 
         // Add ContentLength JSON
         file_put_contents(
-            str_replace('.json', '.length.json', static::$finalFile),
+            str_replace('.json.gz', '.length.json.gz', static::$finalFile),
             filesize(static::$finalFile)
         );
 
