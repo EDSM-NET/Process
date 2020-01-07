@@ -10,7 +10,7 @@ use         Process\Process;
 
 class Elastic extends Process
 {
-    static protected $limit                         = 10000;
+    static protected $limit                         = 25000;
     static protected $elasticClient                 = false;
     static public $elasticConfig                    = false;
 
@@ -36,6 +36,13 @@ class Elastic extends Process
         // Disable cache
         self::$systemsBodiesModel->disableCache();
 
+        // Get Elastic client
+        $client = self::getClient();
+        $client->indices()->putSettings([
+            'index' => static::$elasticConfig->bodyIndex,
+            'body'  => ['settings'  => ['refresh_interval'  => '3600s']]
+        ]);
+
         $select     = self::$systemsBodiesModel->select()
                         ->setIntegrityCheck(false)
                         ->from(
@@ -59,12 +66,6 @@ class Elastic extends Process
 
         if(count($needToBeRefreshed) > 0)
         {
-            $client = self::getClient();
-            $client->indices()->putSettings([
-                'index' => static::$elasticConfig->bodyIndex,
-                'body'  => ['settings'  => ['refresh_interval'  => '600s']]
-            ]);
-
             foreach($needToBeRefreshed AS $currentBody)
             {
                 $return = self::insertBody($currentBody['id'], $currentBody);
@@ -77,9 +78,9 @@ class Elastic extends Process
 
             $client->indices()->putSettings([
                 'index' => static::$elasticConfig->bodyIndex,
-                'body'  => ['settings'  => ['refresh_interval'  => '30s']]
+                'body'  => ['settings'  => ['refresh_interval'  => '600s']]
             ]);
-            $client->indices()->refresh(array('index' => static::$elasticConfig->bodyIndex));
+            //$client->indices()->refresh(array('index' => static::$elasticConfig->bodyIndex));
         }
 
         self::$systemsBodiesModel->enableCache();
