@@ -14,15 +14,18 @@ class Market extends Process
 
     static public function run()
     {
-        $stationsModel  = new \Models_Stations;
+        $stationsModel              = new \Models_Stations;
+        $stationsServicesModel      = new \Models_Stations_Services();
+
         $yesterdayDate  = date('Y-m-d', strtotime('yesterday'));
         $tweet          = array();
-        $tweet[]        = 'Galactic Market update coverage: #EliteDangerous';
+        $tweet[]        = 'Galactic Stations update coverage: #EliteDangerous';
 
         // Complete stats are sent at night with our CRON job
         if(self::$sendCompleteStats === true)
         {
             // Get the total station count
+            /*
             $stationsTotal  = $stationsModel->fetchRow(
                 $stationsModel->select()->from($stationsModel, array(
                     'total' => new \Zend_Db_Expr('COUNT(1)')
@@ -31,17 +34,21 @@ class Market extends Process
             );
 
             $stationsTotal  = $stationsTotal->total;
-            $tweet[]        = '- ' . \Zend_Locale_Format::toNumber($stationsTotal) . ' stations registered.';
+            */
 
-            // Get the total station count with a market
+            // Get the total station count
             $stationsTotal  = $stationsModel->fetchRow(
                 $stationsModel->select()->from($stationsModel, array(
                     'total' => new \Zend_Db_Expr('COUNT(1)')
-                ))->where('marketUpdateTime IS NOT NULL')
-                ->where('name NOT LIKE "Rescue Ship - %"')
+                ))
+                ->joinInner($stationsServicesModel->info('name'), $stationsServicesModel->info('name') . '.refStation = ' . $stationsModel->info('name') . '.id', null)
+                //->where('marketUpdateTime IS NOT NULL')
+                ->where($stationsServicesModel->info('name') . '.refService = ?', 11)
+                ->where($stationsModel->info('name') . '.name NOT LIKE "Rescue Ship - %"')
             );
 
             $stationsTotal  = $stationsTotal->total;
+            $tweet[]        = '- ' . \Zend_Locale_Format::toNumber($stationsTotal) . ' stations registered.';
 
             // Foreach each needed time, get total updated
             $stationsUpdate             = array();
@@ -54,9 +61,13 @@ class Market extends Process
                 $stationsCurrent  = $stationsModel->fetchRow(
                     $stationsModel->select()->from($stationsModel, array(
                         'total' => new \Zend_Db_Expr('COUNT(1)')
-                    ))->where('marketUpdateTime >= DATE_SUB(?, INTERVAL ' . $interval . ')', $yesterdayDate)
-                    ->where('marketUpdateTime IS NOT NULL')
-                    ->where('name NOT LIKE "Rescue Ship - %"')
+                    ))
+                    ->joinInner($stationsServicesModel->info('name'), $stationsServicesModel->info('name') . '.refStation = ' . $stationsModel->info('name') . '.id', null)
+                    //->where('marketUpdateTime >= DATE_SUB(?, INTERVAL ' . $interval . ')', $yesterdayDate)
+                    ->where($stationsModel->info('name') . '.updateTime >= DATE_SUB(?, INTERVAL ' . $interval . ')', $yesterdayDate)
+                    ->where($stationsServicesModel->info('name') . '.refService = ?', 11)
+                    //->where('marketUpdateTime IS NOT NULL')
+                    ->where($stationsModel->info('name') . '.name NOT LIKE "Rescue Ship - %"')
                 );
                 $stationsCurrent  = $stationsCurrent->total;
 
@@ -65,6 +76,7 @@ class Market extends Process
         }
 
         // Select oldest updated, so users can go visit it!
+        /*
         $stationOldest  = $stationsModel->fetchRow(
             $stationsModel->select()
                           ->where('marketUpdateTime IS NOT NULL')
@@ -72,12 +84,26 @@ class Market extends Process
                           ->order('marketUpdateTime ASC')
                           ->limit(1)
         );
+        */
+        $stationOldest              = $stationsModel->fetchRow(
+            $stationsModel->select()
+                          ->setIntegrityCheck(false)
+                          ->from($stationsModel, array('id'))
+                          ->joinInner($stationsServicesModel->info('name'), $stationsServicesModel->info('name') . '.refStation = ' . $stationsModel->info('name') . '.id', null)
+                          ->where($stationsModel->info('name') . '.name NOT LIKE ?', 'Rescue Ship - %')
+                          ->where($stationsServicesModel->info('name') . '.refService = ?', 11)
+                          //->where('marketUpdateTime IS NOT NULL')
+                          //->order('marketUpdateTime ASC')
+                          ->order($stationsModel->info('name') . '.updateTime ASC')
+                          ->limit(1)
+        );
+
         $stationOldest  = $stationOldest->toArray();
         $stationOldest  = \EDSM_System_Station::getInstance($stationOldest['id']);
 
         $tweet[]        = '- Oldest station to update: "' . $stationOldest->getName()
                           . '" in "' . $stationOldest->getSystem()->getName() . '", '
-                          . \Zend_Locale_Format::toNumber(round((strtotime($yesterdayDate) - strtotime($stationOldest->getMarketLastUpdate())) / (60 * 60 * 24))) . ' days ago...';
+                          . \Zend_Locale_Format::toNumber(round((strtotime($yesterdayDate) - strtotime($stationOldest->getUpdateTime())) / (60 * 60 * 24))) . ' days ago...';
 
         if(self::$sendCompleteStats === false)
         {
