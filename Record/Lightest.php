@@ -48,12 +48,13 @@ class Lightest extends Process
                 'size'          => 3,
                 'from'          => 0,
                 'stored_fields' => [],
-                '_source'       => ['bodyId'],
+                '_source'       => ['bodyId', 'mass'],
                 'query'         => [
                     'bool' => [
                         'filter'        => [
                             array('term' => ['mainType' => (int) $group]),
                             array('term' => ['subType' => (int) $type]),
+                            array('range' => ['mass' => ['gt' => 0]]),
                         ]
                     ]
                 ],
@@ -74,6 +75,11 @@ class Lightest extends Process
                     $result[] = array('id' => (int) $hit['_id']);
                 }
             }
+        }
+
+        if(APPLICATION_DEBUG === true)
+        {
+            \Zend_Debug::dump($elasticResults['hits']['hits']);
         }
 
         if(count($result) > 0)

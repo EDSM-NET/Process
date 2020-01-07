@@ -67,6 +67,7 @@ class Smallest extends Process
                         'filter'        => [
                             array('term' => ['mainType' => (int) $group]),
                             array('term' => ['subType' => (int) $type]),
+                            array('range' => ['radius' => ['gt' => 0]]),
                         ]
                     ]
                 ],
