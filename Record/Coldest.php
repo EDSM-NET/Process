@@ -67,7 +67,10 @@ class Coldest extends Process
                         'filter'        => [
                             array('term' => ['mainType' => (int) $group]),
                             array('term' => ['subType' => (int) $type]),
-                        ]
+                        ],
+                        'must_not'      => [
+                            array('term' => ['surfaceTemperature' => (int) 0]),
+                        ],
                     ]
                 ],
                 'sort'          => ['surfaceTemperature' => ['order' => 'asc']]
