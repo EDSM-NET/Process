@@ -118,194 +118,202 @@ class Elastic extends Process
                 $client->delete([
                     'index'     => static::$elasticConfig->bodyIndex,
                     'type'      => '_doc',
-                    'id'        => $currentBody->getId()
+                    'id'        => $currentBodyId
                 ]);
             }
             catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
 
-            // Generate elastic body
-            $elasticBody    = [
-                'bodyId'                            => $currentBodyId,
-                'bodyName'                          => strtolower($currentBody->getName()),
-                'systemName'                        => strtolower($currentSystem->getName()),
-
-                'systemX'                           => $currentSystem->getX(),
-                'systemY'                           => $currentSystem->getY(),
-                'systemZ'                           => $currentSystem->getZ(),
-
-                'mainType'                          => ( ($currentBody->getMainType() == 'Star') ? 1 : 2 ),
-                'subType'                           => $currentBody->getType(),
-                'distanceToArrival'                 => $currentBody->getDistanceToArrival(),
-
-                'isMainStar'                        => $currentBody->isMainStar(),
-                'isLandable'                        => ( ($currentBody->getMainType() == 'Star') ? $currentBody->isScoopable() : $currentBody->isLandable() ),
-
-                'age'                               => $currentBody->getAge(),
-                'spectralClass'                     => $currentBody->getSpectralClass(),
-                'luminosity'                        => $currentBody->getLuminosity(),
-                'absoluteMagnitude'                 => $currentBody->getAbsoluteMagnitude(),
-
-                'haveBeltsOrRings'                  => false,
-
-                'gravity'                           => $currentBody->getGravity(),
-                'mass'                              => $currentBody->getMass(),
-                'radius'                            => $currentBody->getRadius(),
-
-                'terraformingState'                 => $currentBody->getTerraformState(),
-                'atmosphereType'                    => $currentBody->getAtmosphere(),
-                'volcanismType'                     => $currentBody->getVolcanism(),
-                'reserveLevel'                      => $currentBody->getReserveLevel(),
-
-                'surfaceTemperature'                => $currentBody->getSurfaceTemperature(),
-                'surfacePressure'                   => $currentBody->getSurfacePressure(),
-
-                'orbitalPeriod'                     => $currentBody->getOrbitalPeriod(),
-                'semiMajorAxis'                     => $currentBody->getSemiMajorAxis(),
-                'orbitalEccentricity'               => $currentBody->getOrbitalEccentricity(),
-                'orbitalInclination'                => $currentBody->getOrbitalInclination(),
-                'argOfPeriapsis'                    => $currentBody->getArgOfPeriapsis(),
-                'rotationalPeriod'                  => $currentBody->getRotationalPeriod(),
-                'rotationalPeriodTidallyLocked'     => $currentBody->getRotationalPeriodTidallyLocked(),
-                'axialTilt'                         => $currentBody->getAxisTilt(),
-            ];
-
-            // Belts?
-            if($elasticBody['mainType'] == 1)
+            // System d'ont exists, delete the body...
+            if(is_null($currentSystem))
             {
-                $haveBelts = $currentBody->getBelts();
-
-                if(!is_null($haveBelts) && count($haveBelts) > 0)
-                {
-                    $elasticBody['haveBeltsOrRings'] = true;
-                }
+                self::$systemsBodiesModel->deleteById($currentBodyId);
             }
-
-            // Rings?
-            if($elasticBody['mainType'] == 2)
+            else
             {
-                $haveRings = $currentBody->getRings();
+                // Generate elastic body
+                $elasticBody    = [
+                    'bodyId'                            => $currentBodyId,
+                    'bodyName'                          => strtolower($currentBody->getName()),
+                    'systemName'                        => strtolower($currentSystem->getName()),
 
-                if(!is_null($haveRings) && count($haveRings) > 0)
+                    'systemX'                           => $currentSystem->getX(),
+                    'systemY'                           => $currentSystem->getY(),
+                    'systemZ'                           => $currentSystem->getZ(),
+
+                    'mainType'                          => ( ($currentBody->getMainType() == 'Star') ? 1 : 2 ),
+                    'subType'                           => $currentBody->getType(),
+                    'distanceToArrival'                 => $currentBody->getDistanceToArrival(),
+
+                    'isMainStar'                        => $currentBody->isMainStar(),
+                    'isLandable'                        => ( ($currentBody->getMainType() == 'Star') ? $currentBody->isScoopable() : $currentBody->isLandable() ),
+
+                    'age'                               => $currentBody->getAge(),
+                    'spectralClass'                     => $currentBody->getSpectralClass(),
+                    'luminosity'                        => $currentBody->getLuminosity(),
+                    'absoluteMagnitude'                 => $currentBody->getAbsoluteMagnitude(),
+
+                    'haveBeltsOrRings'                  => false,
+
+                    'gravity'                           => $currentBody->getGravity(),
+                    'mass'                              => $currentBody->getMass(),
+                    'radius'                            => $currentBody->getRadius(),
+
+                    'terraformingState'                 => $currentBody->getTerraformState(),
+                    'atmosphereType'                    => $currentBody->getAtmosphere(),
+                    'volcanismType'                     => $currentBody->getVolcanism(),
+                    'reserveLevel'                      => $currentBody->getReserveLevel(),
+
+                    'surfaceTemperature'                => $currentBody->getSurfaceTemperature(),
+                    'surfacePressure'                   => $currentBody->getSurfacePressure(),
+
+                    'orbitalPeriod'                     => $currentBody->getOrbitalPeriod(),
+                    'semiMajorAxis'                     => $currentBody->getSemiMajorAxis(),
+                    'orbitalEccentricity'               => $currentBody->getOrbitalEccentricity(),
+                    'orbitalInclination'                => $currentBody->getOrbitalInclination(),
+                    'argOfPeriapsis'                    => $currentBody->getArgOfPeriapsis(),
+                    'rotationalPeriod'                  => $currentBody->getRotationalPeriod(),
+                    'rotationalPeriodTidallyLocked'     => $currentBody->getRotationalPeriodTidallyLocked(),
+                    'axialTilt'                         => $currentBody->getAxisTilt(),
+                ];
+
+                // Belts?
+                if($elasticBody['mainType'] == 1)
                 {
-                    $elasticBody['haveBeltsOrRings'] = true;
-                }
-            }
+                    $haveBelts = $currentBody->getBelts();
 
-            // Materials
-            $currentBodyMaterials   = $currentBody->getMaterials(true);
-            if(!is_null($currentBodyMaterials) && count($currentBodyMaterials) > 0)
-            {
-                $elasticBody['materials'] = array();
-
-                foreach($currentBodyMaterials AS $id => $currentMaterial)
-                {
-                    $elasticBody['materials'][] = array('id' => $id, 'value' => $currentMaterial['value']);
-                }
-            }
-
-            // Atmosphere composition
-            $currentBodyAtmosphereComposition   = $currentBody->getAtmosphereComposition();
-            if(!is_null($currentBodyAtmosphereComposition) && count($currentBodyAtmosphereComposition) > 0)
-            {
-                $elasticBody['atmosphereComposition'] = array();
-
-                foreach($currentBodyAtmosphereComposition AS $id => $currentComposition)
-                {
-                    $elasticBody['atmosphereComposition'][] = array('id' => $id, 'value' => $currentComposition);
-                }
-            }
-
-            // Solid composition
-            $currentBodySolidComposition   = $currentBody->getSolidComposition();
-            if(!is_null($currentBodySolidComposition) && count($currentBodySolidComposition) > 0)
-            {
-                $elasticBody['solidComposition'] = array();
-
-                foreach($currentBodySolidComposition AS $id => $currentComposition)
-                {
-                    $elasticBody['solidComposition'][] = array('id' => $id, 'value' => $currentComposition);
-                }
-            }
-
-            // Scanning
-            $firstScanned   = $currentBody->getFirstScannedBy();
-            $haveScanned    = array();
-            if(!is_null($firstScanned))
-            {
-                $elasticBody['firstScanned']    = (int) $firstScanned->getId();
-                $haveScanned[]                  = $elasticBody['firstScanned'];
-            }
-
-            $usersScans = self::$systemsBodiesUsersModel->getByRefBody($currentBody->getId());
-            if(!is_null($usersScans) && count($usersScans) > 0)
-            {
-                foreach($usersScans AS $userScan)
-                {
-                    if(!in_array((int) $userScan['refUser'], $haveScanned))
+                    if(!is_null($haveBelts) && count($haveBelts) > 0)
                     {
-                        $haveScanned[] = (int) $userScan['refUser'];
+                        $elasticBody['haveBeltsOrRings'] = true;
                     }
                 }
-            }
 
-            if(count($haveScanned) > 0)
-            {
-                $elasticBody['haveScanned'] = $haveScanned;
-            }
-
-            // Mapping
-            $firstMapped    = $currentBody->getFirstMappedBy();
-            $haveMapped     = array();
-            if(!is_null($firstMapped))
-            {
-                $elasticBody['firstMapped']     = (int) $firstMapped->getId();
-                $haveMapped[]                   = $elasticBody['firstMapped'];
-            }
-
-            $usersMaps = self::$systemsBodiesUsersSAAModel->getByRefBody($currentBody->getId());
-            if(!is_null($usersMaps) && count($usersMaps) > 0)
-            {
-                foreach($usersMaps AS $userMap)
+                // Rings?
+                if($elasticBody['mainType'] == 2)
                 {
-                    if(!in_array((int) $userMap['refUser'], $haveMapped))
+                    $haveRings = $currentBody->getRings();
+
+                    if(!is_null($haveRings) && count($haveRings) > 0)
                     {
-                        $haveMapped[] = (int) $userMap['refUser'];
+                        $elasticBody['haveBeltsOrRings'] = true;
                     }
                 }
-            }
 
-            if(count($haveMapped) > 0)
-            {
-                $elasticBody['haveMapped'] = $haveMapped;
-            }
+                // Materials
+                $currentBodyMaterials   = $currentBody->getMaterials(true);
+                if(!is_null($currentBodyMaterials) && count($currentBodyMaterials) > 0)
+                {
+                    $elasticBody['materials'] = array();
 
-            // Insert a new version
-            $response = $client->index([
-                'index'     => static::$elasticConfig->bodyIndex,
-                'type'      => '_doc',
-                'id'        => $currentBody->getId(),
-                'body'      => $elasticBody,
-            ]);
-            //\Zend_Debug::dump($response, 'INSERT');
+                    foreach($currentBodyMaterials AS $id => $currentMaterial)
+                    {
+                        $elasticBody['materials'][] = array('id' => $id, 'value' => $currentMaterial['value']);
+                    }
+                }
 
-            // Check if it's ok
+                // Atmosphere composition
+                $currentBodyAtmosphereComposition   = $currentBody->getAtmosphereComposition();
+                if(!is_null($currentBodyAtmosphereComposition) && count($currentBodyAtmosphereComposition) > 0)
+                {
+                    $elasticBody['atmosphereComposition'] = array();
 
-            try
-            {
-                $response = $client->get([
+                    foreach($currentBodyAtmosphereComposition AS $id => $currentComposition)
+                    {
+                        $elasticBody['atmosphereComposition'][] = array('id' => $id, 'value' => $currentComposition);
+                    }
+                }
+
+                // Solid composition
+                $currentBodySolidComposition   = $currentBody->getSolidComposition();
+                if(!is_null($currentBodySolidComposition) && count($currentBodySolidComposition) > 0)
+                {
+                    $elasticBody['solidComposition'] = array();
+
+                    foreach($currentBodySolidComposition AS $id => $currentComposition)
+                    {
+                        $elasticBody['solidComposition'][] = array('id' => $id, 'value' => $currentComposition);
+                    }
+                }
+
+                // Scanning
+                $firstScanned   = $currentBody->getFirstScannedBy();
+                $haveScanned    = array();
+                if(!is_null($firstScanned))
+                {
+                    $elasticBody['firstScanned']    = (int) $firstScanned->getId();
+                    $haveScanned[]                  = $elasticBody['firstScanned'];
+                }
+
+                $usersScans = self::$systemsBodiesUsersModel->getByRefBody($currentBody->getId());
+                if(!is_null($usersScans) && count($usersScans) > 0)
+                {
+                    foreach($usersScans AS $userScan)
+                    {
+                        if(!in_array((int) $userScan['refUser'], $haveScanned))
+                        {
+                            $haveScanned[] = (int) $userScan['refUser'];
+                        }
+                    }
+                }
+
+                if(count($haveScanned) > 0)
+                {
+                    $elasticBody['haveScanned'] = $haveScanned;
+                }
+
+                // Mapping
+                $firstMapped    = $currentBody->getFirstMappedBy();
+                $haveMapped     = array();
+                if(!is_null($firstMapped))
+                {
+                    $elasticBody['firstMapped']     = (int) $firstMapped->getId();
+                    $haveMapped[]                   = $elasticBody['firstMapped'];
+                }
+
+                $usersMaps = self::$systemsBodiesUsersSAAModel->getByRefBody($currentBody->getId());
+                if(!is_null($usersMaps) && count($usersMaps) > 0)
+                {
+                    foreach($usersMaps AS $userMap)
+                    {
+                        if(!in_array((int) $userMap['refUser'], $haveMapped))
+                        {
+                            $haveMapped[] = (int) $userMap['refUser'];
+                        }
+                    }
+                }
+
+                if(count($haveMapped) > 0)
+                {
+                    $elasticBody['haveMapped'] = $haveMapped;
+                }
+
+                // Insert a new version
+                $response = $client->index([
                     'index'     => static::$elasticConfig->bodyIndex,
                     'type'      => '_doc',
-                    'id'        => $currentBody->getId()
+                    'id'        => $currentBody->getId(),
+                    'body'      => $elasticBody,
                 ]);
-            }
-            catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){$response = null;}
+                //\Zend_Debug::dump($response, 'INSERT');
+
+                // Check if it's ok
+
+                try
+                {
+                    $response = $client->get([
+                        'index'     => static::$elasticConfig->bodyIndex,
+                        'type'      => '_doc',
+                        'id'        => $currentBody->getId()
+                    ]);
+                }
+                catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){$response = null;}
 
 
-            if(is_array($response) && array_key_exists('found', $response) && $response['found'] === true)
-            {
-                self::$systemsBodiesModel->updateById($currentBody->getId(), ['inElastic' => 1]);
-                self::$systemsBodiesModel->enableCache();
-                return true;
+                if(is_array($response) && array_key_exists('found', $response) && $response['found'] === true)
+                {
+                    self::$systemsBodiesModel->updateById($currentBody->getId(), ['inElastic' => 1]);
+                    self::$systemsBodiesModel->enableCache();
+                    return true;
+                }
             }
         }
 
