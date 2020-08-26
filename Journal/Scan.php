@@ -10,7 +10,7 @@ use         Process\Process;
 
 class Scan extends Check
 {
-    static protected $limit         = 1000;
+    static protected $limit         = 2500;
 
     protected static function getEntries()
     {
@@ -23,7 +23,7 @@ class Scan extends Check
         if($limit > 0)
         {
             $journalEntries     = $journalModels->select()
-                                                ->limit($limit)
+                                                ->limit($limit * 2)
                                                 ->setIntegrityCheck(false)
                                                 ->from($journalModels, array($journalModels->info('name') . '.*'))
                                                 ->joinInner($usersModel->info('name'), $journalModels->info('name') . '.refUser = ' . $usersModel->info('name') . '.id', null)

@@ -20,6 +20,7 @@ class Check extends Process
 
         $nbSkip             = 0;
         $nbDeleted          = 0;
+        $nbOld              = 0;
         $nbDiscarded        = 0;
 
         foreach($journalEntries AS $entry)
@@ -55,13 +56,11 @@ class Check extends Process
                 }
 
                 // Add json to Sentry extra context
-                $registry = \Zend_Registry::getInstance();
-                if($registry->offsetExists('sentryClient'))
+                if(defined('APPLICATION_SENTRY') && APPLICATION_SENTRY === true)
                 {
-                    $sentryClient = $registry->offsetGet('sentryClient');
-                    $sentryClient->extra_context(array(
-                        'json' => $entry['message'],
-                    ));
+                    \Sentry\State\Hub::getCurrent()->configureScope(function (\Sentry\State\Scope $scope) use ($entry): void {
+                        $scope->setExtra('json', $entry['message']);
+                    });
                 }
 
                 // Call the event class
@@ -86,6 +85,11 @@ class Check extends Process
                     $nbDeleted++;
                     $journalModels->deleteByRefUserEventAndDateEvent($entry['refUser'], $entry['event'], $entry['dateEvent']);
                 }
+                elseif(strtotime($entry['dateEvent']) < strtotime('1 YEAR AGO'))
+                {
+                    $nbOld++;
+                    $journalModels->deleteByRefUserEventAndDateEvent($entry['refUser'], $entry['event'], $entry['dateEvent']);
+                }
                 else
                 {
                     $nbSkip++;
@@ -105,6 +109,10 @@ class Check extends Process
         if($nbDeleted > 0)
         {
             static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Reparsed ' . \Zend_Locale_Format::toNumber($nbDeleted) . ' events');
+        }
+        if($nbOld > 0)
+        {
+            static::log('<span class="text-info">' . str_replace('Process\\', '', static::class) . ':</span> Old ' . \Zend_Locale_Format::toNumber($nbOld) . ' events');
         }
         if($nbDiscarded > 0)
         {
