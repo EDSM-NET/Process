@@ -27,7 +27,7 @@ class Galnet extends Process
                 $response   = $client->request();
                 $body       = $response->getBody();
             }
-            catch(Exception $e)
+            catch(\Zend_Http_Client_Adapter_Exception $e)
             {
             	$body = null;
             }

@@ -72,12 +72,9 @@ class Patreon extends Process
                             }
                             else
                             {
-                                $registry = \Zend_Registry::getInstance();
-
-                                if($registry->offsetExists('sentryClient'))
+                                if(defined('APPLICATION_SENTRY') && APPLICATION_SENTRY === true)
                                 {
-                                    $sentryClient = $registry->offsetGet('sentryClient');
-                                    $sentryClient->captureException($e);
+                                    \Sentry\captureException($e);
                                 }
                             }
                         }
@@ -89,15 +86,12 @@ class Patreon extends Process
                     {
                         $missingEmails[] = $line[1];
 
-                        $registry = \Zend_Registry::getInstance();
-
-                        if($registry->offsetExists('sentryClient'))
+                        if(defined('APPLICATION_SENTRY') && APPLICATION_SENTRY === true)
                         {
-                            $sentryClient = $registry->offsetGet('sentryClient');
-                            $sentryClient->captureMessage(
-                                'Patreon user not found?',
-                                array('patreon' => $line,)
-                            );
+                            \Sentry\State\Hub::getCurrent()->configureScope(function (\Sentry\State\Scope $scope) use ($line): void {
+                                $scope->setExtra('patreon', $line);
+                            });
+                            \Sentry\captureMessage('Patreon user not found?');
                         }
                     }
                 }

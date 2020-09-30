@@ -332,25 +332,28 @@ class Delete extends Process
 
                     $usersModel->deleteById($userToHandle['id']);
 
-                    // Send delete email
-                    try
+                    if(filter_var($userToHandle['email'], FILTER_VALIDATE_EMAIL) !== false)
                     {
-                        $mail = new \EDSM_Mail();
-                        $mail->setLanguage( ((!is_null($userToHandle['language'])) ? $userToHandle['language'] : 'en') );
-                        $mail->setTemplate('delete.phtml');
-                        $mail->setVariables(array(
-                            'commander'   => $userToHandle['commanderName'],
-                        ));
+                        // Send delete email
+                        try
+                        {
+                            $mail = new \EDSM_Mail();
+                            $mail->setLanguage( ((!is_null($userToHandle['language'])) ? $userToHandle['language'] : 'en') );
+                            $mail->setTemplate('delete.phtml');
+                            $mail->setVariables(array(
+                                'commander'   => $userToHandle['commanderName'],
+                            ));
 
-                        $mail->addTo($userToHandle['email']);
+                            $mail->addTo($userToHandle['email']);
 
-                        $mail->setSubject($mail->getView()->translate('EMAIL\Account deleted'));
-                        $mail->send();
-                        $mail->closeConnection();
-                    }
-                    catch(Exception $e)
-                    {
-                        // Do nothing, user is gone anyway :)
+                            $mail->setSubject($mail->getView()->translate('EMAIL\Account deleted'));
+                            $mail->send();
+                            $mail->closeConnection();
+                        }
+                        catch(Exception $e)
+                        {
+                            // Do nothing, user is gone anyway :)
+                        }
                     }
 
                     static::log('    - ' . $userToHandle['commanderName'] . ' deleted.');
@@ -359,25 +362,28 @@ class Delete extends Process
                 {
                     $usersModel->updateById($userToHandle['id'], array('isMarkedForClearing' => 0));
 
-                    // Send delete email
-                    try
+                    if(filter_var($userToHandle['email'], FILTER_VALIDATE_EMAIL) !== false)
                     {
-                        $mail = new \EDSM_Mail();
-                        $mail->setLanguage( ((!is_null($userToHandle['language'])) ? $userToHandle['language'] : 'en') );
-                        $mail->setTemplate('clear.phtml');
-                        $mail->setVariables(array(
-                            'commander'   => $userToHandle['commanderName'],
-                        ));
+                        // Send cleared email
+                        try
+                        {
+                            $mail = new \EDSM_Mail();
+                            $mail->setLanguage( ((!is_null($userToHandle['language'])) ? $userToHandle['language'] : 'en') );
+                            $mail->setTemplate('clear.phtml');
+                            $mail->setVariables(array(
+                                'commander'   => $userToHandle['commanderName'],
+                            ));
 
-                        $mail->addTo($userToHandle['email']);
+                            $mail->addTo($userToHandle['email']);
 
-                        $mail->setSubject($mail->getView()->translate('EMAIL\Save cleared'));
-                        $mail->send();
-                        $mail->closeConnection();
-                    }
-                    catch(Exception $e)
-                    {
-                        // Do nothing, user will see when he comes back :)
+                            $mail->setSubject($mail->getView()->translate('EMAIL\Save cleared'));
+                            $mail->send();
+                            $mail->closeConnection();
+                        }
+                        catch(Exception $e)
+                        {
+                            // Do nothing, user will see when he comes back :)
+                        }
                     }
 
                     static::log('    - ' . $userToHandle['commanderName'] . ' cleared.');

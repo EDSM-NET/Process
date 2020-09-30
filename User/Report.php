@@ -17,6 +17,8 @@ class Report extends Process
 
     static public function run()
     {
+        $currentDay = date('d');
+
         // Make a list of the last period days dates
         for($i = static::$period; $i > 0; $i--)
         {
@@ -46,7 +48,7 @@ class Report extends Process
                 static::fillDatabase();
             }
 
-            if(in_array(date('d'), static::$sendReportOn) || APPLICATION_DEBUG === true)
+            if(in_array($currentDay, static::$sendReportOn) || APPLICATION_DEBUG === true)
             {
                 static::sendReports();
             }
