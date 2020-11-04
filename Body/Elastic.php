@@ -239,7 +239,7 @@ class Elastic extends Process
                 $haveScanned    = array();
                 if(!is_null($firstScanned))
                 {
-                    $elasticBody['firstScanned']    = (int) $firstScanned->getId();
+                    $elasticBody['firstScanned']    = (int) $firstScanned[0]->getId(); //TODO: Handle multiple?
                     $haveScanned[]                  = $elasticBody['firstScanned'];
                 }
 

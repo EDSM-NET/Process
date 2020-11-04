@@ -104,12 +104,18 @@ class Hottest extends Process
                 $body               = \EDSM_System_Body::getInstance($record['id']);
                 $bodyFirstScannedBy = $body->getFirstScannedBy();
 
-                if(!is_null($bodyFirstScannedBy) && $bodyFirstScannedBy instanceof \Component\User)
+                if(!is_null($bodyFirstScannedBy))
                 {
-                    $bodyFirstScannedBy->giveBadge(
-                        7800,
-                        array('type' => 'hottest' . $groupName . '_' . $type, 'bodyId' => $body->getId())
-                    );
+                    foreach($bodyFirstScannedBy AS $firstScannedBy)
+                    {
+                        if($firstScannedBy instanceof \Component\User)
+                        {
+                            $firstScannedBy->giveBadge(
+                                7800,
+                                array('type' => 'hottest' . $groupName . '_' . $type, 'bodyId' => $body->getId())
+                            );
+                        }
+                    }
                 }
 
                 unset($body, $bodyFirstScannedBy);

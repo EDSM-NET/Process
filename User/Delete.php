@@ -12,15 +12,23 @@ class Delete extends Process
 {
     static public function run()
     {
+        $args   = func_get_args();
+        $prune  = (array_key_exists(0, $args)) ? $args[0] : false;
+
         if(!defined('Process_User_Delete_noGivingBadge'))
         {
             define('Process_User_Delete_noGivingBadge', true);
         }
 
         $usersModel = new \Models_Users;
-        $users      = $usersModel->fetchAll(
-            $usersModel->select()->where('isMarkedForClearing = ?', 1)->orWhere('isMarkedForDeletion = ?', 1)
-        );
+        $query      = $usersModel->select()->where('isMarkedForClearing = ?', 1)->orWhere('isMarkedForDeletion = ?', 1);
+
+        if($prune === true)
+        {
+            $query      = $usersModel->select()->where('isMarkedForPrune = ?', 1);
+        }
+
+        $users      = $usersModel->fetchAll($query);
 
         if(!is_null($users) && count($users) > 0)
         {
@@ -323,7 +331,7 @@ class Delete extends Process
                 unset($model, $values);
 
                 // FINAL
-                if($userToHandle['isMarkedForDeletion'] == 1)
+                if($userToHandle['isMarkedForDeletion'] == 1 || $userToHandle['isMarkedForPrune'] == 1)
                 {
                     // Delete users fingerprint
                     $model  = new \Models_Users_Fingerprint;
@@ -338,15 +346,15 @@ class Delete extends Process
                         try
                         {
                             $mail = new \EDSM_Mail();
-                            $mail->setLanguage( ((!is_null($userToHandle['language'])) ? $userToHandle['language'] : 'en') );
-                            $mail->setTemplate('delete.phtml');
+                            $mail->setLanguage( ((!is_null($userToHandle['language']) && !empty($userToHandle['language'])) ? $userToHandle['language'] : 'en') );
+                            $mail->setTemplate((($prune === true) ? 'prune.phtml' : 'delete.phtml'));
                             $mail->setVariables(array(
                                 'commander'   => $userToHandle['commanderName'],
                             ));
 
                             $mail->addTo($userToHandle['email']);
 
-                            $mail->setSubject($mail->getView()->translate('EMAIL\Account deleted'));
+                            $mail->setSubject((($prune === true) ? 'Account deleted due to inactivity' : $mail->getView()->translate('EMAIL\Account deleted')));
                             $mail->send();
                             $mail->closeConnection();
                         }

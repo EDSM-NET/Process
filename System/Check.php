@@ -14,7 +14,6 @@ class Check extends Process
     {
         $systemsModel           = new \Models_Systems;
         $systemsHidesModel      = new \Models_Systems_Hides;
-        $systemsFeaturedModel   = new \Models_Systems_Featured;
         $distancesModel         = new \Models_Distances;
 
         $select = $systemsModel->select()
@@ -25,10 +24,6 @@ class Check extends Process
                              ->where(
                                  'id NOT IN(?)',
                                  new \Zend_Db_Expr($systemsHidesModel->select()->from($systemsHidesModel, array('refSystem')))
-                             )
-                             ->where(
-                                 'id NOT IN(?)',
-                                 new \Zend_Db_Expr($systemsFeaturedModel->select()->from($systemsFeaturedModel, array('refSystem')))
                              )
                              ->order('lastTrilateration ASC')
                              ->order('id ASC');
@@ -118,7 +113,7 @@ class Check extends Process
                     \Component\System::destroyInstance($currentSystem->id);
 
                     $systemsModel->getAdapter()->closeConnection();
-                    unset($systemsModel, $systemsHidesModel, $systemsFeaturedModel, $distancesModel, $currentSystem, $system);
+                    unset($systemsModel, $systemsHidesModel, $distancesModel, $currentSystem, $system);
                     return;
                 }
                 else
@@ -139,10 +134,10 @@ class Check extends Process
                             ),
                             false
                         );
-                        
+
                         \Component\System::destroyInstance($currentSystem->id);
 
-                        unset($systemsModel, $systemsHidesModel, $systemsFeaturedModel, $distancesModel, $currentSystem, $system);
+                        unset($systemsModel, $systemsHidesModel, $distancesModel, $currentSystem, $system);
                         return;
                     }
                 }
@@ -159,7 +154,7 @@ class Check extends Process
             \Component\System::destroyInstance($currentSystem->id);
 
             $systemsModel->getAdapter()->closeConnection();
-            unset($systemsModel, $systemsHidesModel, $systemsFeaturedModel, $distancesModel, $currentSystem, $system);
+            unset($systemsModel, $systemsHidesModel, $distancesModel, $currentSystem, $system);
         }
 
         return;
