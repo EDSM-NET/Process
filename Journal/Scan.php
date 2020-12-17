@@ -10,13 +10,13 @@ use         Process\Process;
 
 class Scan extends Check
 {
-    static protected $limit         = 5000;
+    static protected $limit         = 20000;
 
     protected static function getEntries()
     {
         $limit              = static::$limit;
         $results            = array();
-        $journalModels      = new \Models_Journal;
+        $journalModels      = new \Models_Journal_Scanner; // Switch to another temp table to speed up the process...
         $usersModel         = new \Models_Users;
 
         // Prioritary users
@@ -27,7 +27,7 @@ class Scan extends Check
                                                 ->setIntegrityCheck(false)
                                                 ->from($journalModels, array($journalModels->info('name') . '.*'))
                                                 ->joinInner($usersModel->info('name'), $journalModels->info('name') . '.refUser = ' . $usersModel->info('name') . '.id', null)
-                                                ->where('event = ?', 'Scan')
+                                                //->where('event = ?', 'Scan')
                                                 ->where($usersModel->info('name') . '.waitScanBodyFromEDDN = ?', 0);
             $resultsTmp            = $journalModels->fetchAll($journalEntries);
 
@@ -65,8 +65,6 @@ class Scan extends Check
 
             $journalEntries     = $journalModels->select()
                                                 ->limit($limit)
-                                                ->where('event = ?', 'Scan')
-                                                ->orWhere('event = ?', 'SAAScanComplete')
                                                 ->order('RAND()');
             $resultsTmp            = $journalModels->fetchAll($journalEntries);
 

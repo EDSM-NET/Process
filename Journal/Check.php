@@ -10,7 +10,7 @@ use         Process\Process;
 
 class Check extends Process
 {
-    static protected $limit         = 5000;
+    static protected $limit         = 15000;
     static protected $lastModified  = array();
 
     static public function run()
@@ -129,7 +129,7 @@ class Check extends Process
         $journalModels      = new \Models_Journal;
         $journalEntries     = $journalModels->select()
                                             ->limit(static::$limit)
-                                            ->where('event != ?', 'Scan')
+                                            //->where('event != ?', 'Scan') // Still handles the old events...
                                             ->order('RAND()');
 
         return $journalModels->getAdapter()->fetchAll($journalEntries);

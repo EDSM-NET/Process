@@ -56,6 +56,74 @@ class Station extends Process
                 $tmpStation['systemName']  = $stationSystem->getName();
             }
 
+            if($station->haveMarket())
+            {
+                $tmpStation['commodities']  = array();
+                $market                     = $station->getMarket();
+
+                foreach($market AS $commodity)
+                {
+                    $tmpStation['commodities'][] = array(
+                        'id'            => \Alias\Station\Commodity\Type::getToFd($commodity['refCommodity']),
+                        'name'          => \Alias\Station\Commodity\Type::get($commodity['refCommodity']),
+                        'buyPrice'      => $commodity['buyPrice'],
+                        'stock'         => $commodity['stock'],
+                        'sellPrice'     => $commodity['sellPrice'],
+                        'demand'        => $commodity['demand'],
+                        'stockBracket'  => $commodity['stockBracket'],
+                    );
+                }
+
+                sort($tmpStation['commodities']);
+            }
+            else
+            {
+                $tmpStation['commodities'] = null;
+            }
+
+            if($station->haveShipyard())
+            {
+                $tmpStation['ships']    = array();
+                $shipyard               = $station->getShipyard();
+
+                foreach($shipyard AS $ship)
+                {
+                    $tmpStation['ships'][] = array(
+                        'id'    => (int) $ship['refShip'],
+                        'name'  => \Alias\Ship\Type::get($ship['refShip']),
+                    );
+                }
+
+                sort($tmpStation['ships']);
+            }
+            else
+            {
+                $tmpStation['ships'] = null;
+            }
+
+            if($station->haveOutfitting())
+            {
+                $tmpStation['outfitting']   = array();
+                $outfittings                = $station->getOutfitting();
+
+                foreach($outfittings AS $outfitting)
+                {
+                    $tmpStation['outfitting'][] = array(
+                        'id'    => \Alias\Station\Outfitting\Type::getToFd($outfitting['refOutfitting']),
+                        'name'  => \Alias\Station\Outfitting\Classes::get($outfitting['refOutfitting'])
+                                 . \Alias\Station\Outfitting\Rating::get($outfitting['refOutfitting'])
+                                 . ' ' . \Alias\Station\Outfitting\Type::get($outfitting['refOutfitting']),
+
+                    );
+                }
+
+                sort($tmpStation['outfitting']);
+            }
+            else
+            {
+                $tmpStation['outfitting'] = null;
+            }
+
             if($key > 0)
             {
                 $dumpStr .= ',' . PHP_EOL;

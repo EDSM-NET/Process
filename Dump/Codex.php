@@ -26,8 +26,6 @@ class Codex extends Process
 
         $codexModel         = new \Models_Codex;
         $codexReportModel   = new \Models_Codex_Reports;
-        $systemsModel       = new \Models_Systems;
-        $systemsHidesModel  = new \Models_Systems_Hides;
 
         $select             = $codexReportModel->select()
                                                ->setIntegrityCheck(false)
@@ -37,16 +35,10 @@ class Codex extends Process
                                                         $codexReportModel->info('name') . '.*',
                                                         $codexModel->info('name') . '.refRegion',
                                                         $codexModel->info('name') . '.refType',
-                                                        //'systemId64'   => $systemsModel->info('name') . '.id64',
-                                                        //'systemName'   => $systemsModel->info('name') . '.name',
                                                     )
                                                 )
                                                 ->joinInner($codexModel->info('name'), $codexReportModel->info('name') . '.refCodex = ' . $codexModel->info('name') . '.id', null)
-                                                //->joinInner($systemsModel->info('name'), $codexReportModel->info('name') . '.refSystem = ' . $systemsModel->info('name') . '.id', null)
-                                                //->joinLeft($systemsHidesModel->info('name'), $systemsModel->info('name') . '.id = ' . $systemsHidesModel->info('name') . '.refSystem', null)
-                                                //->where($systemsHidesModel->info('name') . '.refSystem IS NULL')
-                                                ->order('reportedOn ASC')
-                                                ;
+                                                ->order('reportedOn ASC');
 
         file_put_contents(static::$tempFile, '[' . PHP_EOL);
 
@@ -78,7 +70,8 @@ class Codex extends Process
                     $tmpCodex['systemId64']  = $system->getId64();
                     $tmpCodex['systemName']  = $system->getName();
                     $tmpCodex['region']      = \Alias\Codex\Region::get((int) $codexReport['refRegion']);
-                    $tmpCodex['type']        = \Alias\Codex\Type::get((int) $codexReport['refType']);
+                    $tmpCodex['type']        = \Alias\Codex\Type::getToFd((int) $codexReport['refType']);
+                    $tmpCodex['name']        = \Alias\Codex\Type::get((int) $codexReport['refType']);
                     $tmpCodex['reportedOn']  = $codexReport['reportedOn'];
 
                     if($key > 0)
@@ -122,8 +115,8 @@ class Codex extends Process
             filesize(static::$finalFile)
         );
 
-        $stationsModel->getAdapter()->closeConnection();
-        unset($stationsModel, $stations);
+        $codexModel->getAdapter()->closeConnection();
+        unset($codexModel, $codexReportModel);
 
         static::endLog();
         return;
