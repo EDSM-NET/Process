@@ -121,6 +121,11 @@ class Elastic extends Process
                     'id'        => $currentBodyId
                 ]);
             }
+            catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex)
+            {
+                self::$systemsBodiesModel->enableCache();
+                return true;
+            }
             catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
 
             // System d'ont exists, delete the body...
