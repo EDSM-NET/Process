@@ -26,13 +26,15 @@ class Hottest extends Process
 
         if($group == 1)
         {
-            $groupName  = 'Star';
-            $typeName   = \Alias\Body\Star\Type::get($type);
+            $elasticIndex   = \Process\Body\Elastic::$elasticConfig->bodyStarIndex;
+            $groupName      = 'Star';
+            $typeName       = \Alias\Body\Star\Type::get($type);
         }
         elseif($group == 2)
         {
-            $groupName = 'Planet';
-            $typeName   = \Alias\Body\Planet\Type::get($type);
+            $elasticIndex   = \Process\Body\Elastic::$elasticConfig->bodyPlanetIndex;
+            $groupName      = 'Planet';
+            $typeName       = \Alias\Body\Planet\Type::get($type);
         }
         else
         {
@@ -55,7 +57,7 @@ class Hottest extends Process
         $result         = array();
         $elasticClient  = \Process\Body\Elastic::getClient();
         $elasticResults = $elasticClient->search([
-            'index'     => \Process\Body\Elastic::$elasticConfig->bodyIndex,
+            'index'     => $elasticIndex,
             'type'      => '_doc',
             'body'      => [
                 'size'          => 3,
@@ -65,7 +67,6 @@ class Hottest extends Process
                 'query'         => [
                     'bool' => [
                         'filter'        => [
-                            array('term' => ['mainType' => (int) $group]),
                             array('term' => ['subType' => (int) $type]),
                         ]
                     ]

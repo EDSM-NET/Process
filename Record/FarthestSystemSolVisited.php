@@ -19,24 +19,13 @@ class FarthestSystemSolVisited extends Process
         $sortSystem     = \Component\System::getInstance(27);
         $elasticClient  = \Process\Body\Elastic::getClient();
         $elasticResults = $elasticClient->search([
-            'index'     => \Process\Body\Elastic::$elasticConfig->bodyIndex,
+            'index'     => \Process\Body\Elastic::$elasticConfig->systemIndex,
             'type'      => '_doc',
             'body'      => [
                 'size'          => 3,
                 'from'          => 0,
                 'stored_fields' => [],
-                '_source'       => ['bodyId', 'systemName'],
-                /*
-                'query'         => [
-                    'bool' => [
-                        'filter'        => [
-                            array('term' => ['mainType' => (int) $group]),
-                            array('term' => ['subType' => (int) $type]),
-                        ]
-                    ]
-                ],
-                */
-                'collapse'      => ['field' => 'systemName'],
+                '_source'       => ['systemId'],
                 'sort'          => ['_script' => [
                     'type'          => 'number',
                     'order'         => 'desc',
@@ -55,19 +44,11 @@ class FarthestSystemSolVisited extends Process
 
         if(is_array($elasticResults) && count($elasticResults['hits']['hits']) > 0)
         {
-            $systemsModel               = new \Models_Systems;
-
             foreach($elasticResults['hits']['hits'] AS $hit)
             {
-                $systemId = $systemsModel->getByName($hit['_source']['systemName']);
-
-                if(array_key_exists('bodyId', $hit['_source']))
+                if(array_key_exists('systemId', $hit['_source']))
                 {
-                    $result[] = array('id' => $systemId['id'], 'calculatedDistance' => (float) sqrt($hit['sort'][0]) * 100);
-                }
-                else
-                {
-                    $result[] = array('id' => $systemId['id'], 'calculatedDistance' => (float) sqrt($hit['sort'][0]) * 100);
+                    $result[] = array('id' => $hit['_source']['systemId'], 'calculatedDistance' => (float) sqrt($hit['sort'][0]) * 100);
                 }
             }
         }
@@ -96,9 +77,6 @@ class FarthestSystemSolVisited extends Process
         }
 
         static::log('<span class="text-info">Record\FarthestSystemSolVisited</span>');
-
-        $systemsModel->getAdapter()->closeConnection();
-        unset($systemsModel);
         unset($result);
 
         return;
