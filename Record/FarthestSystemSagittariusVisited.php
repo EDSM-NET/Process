@@ -20,7 +20,6 @@ class FarthestSystemSagittariusVisited extends Process
         $elasticClient  = \Process\Body\Elastic::getClient();
         $elasticResults = $elasticClient->search([
             'index'     => \Process\Body\Elastic::$elasticConfig->systemIndex,
-            'type'      => '_doc',
             'body'      => [
                 'size'          => 3,
                 'from'          => 0,

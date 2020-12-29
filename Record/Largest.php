@@ -58,7 +58,6 @@ class Largest extends Process
         $elasticClient  = \Process\Body\Elastic::getClient();
         $elasticResults = $elasticClient->search([
             'index'     => $elasticIndex,
-            'type'      => '_doc',
             'body'      => [
                 'size'          => 3,
                 'from'          => 0,

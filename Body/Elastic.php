@@ -20,17 +20,17 @@ class Elastic extends Process
     static protected $systemsBodiesParentsModel     = null;
     static protected $systemsBodiesUsersModel       = null;
     static protected $systemsBodiesUsersSAAModel    = null;
+    static protected $systemsBodiesInElasticModel   = null;
 
-    public static function run()
+    public static function run($reset = false)
     {
-        if(APPLICATION_DEBUG === true)
+        //self::reset();exit();
+        if($reset === true)
         {
-            //self::reset();
-            static::$limit = 50;
+            return self::reset();
         }
 
-        $limit                              = static::$limit;
-        $elasticUpdate                      = 0;
+        $elasticUpdate = 0;
         self::setupDatabaseModels();
 
         // Disable cache
@@ -38,10 +38,8 @@ class Elastic extends Process
 
         // Get Elastic client
         $client = self::getClient();
-        $client->indices()->putSettings([
-            'index' => static::$elasticConfig->bodyIndex,
-            'body'  => ['settings'  => ['refresh_interval'  => '3600s']]
-        ]);
+        $client->indices()->putSettings(['index' => static::$elasticConfig->bodyStarIndex, 'body' => ['settings' => ['refresh_interval' => '3600s']]]);
+        $client->indices()->putSettings(['index' => static::$elasticConfig->bodyPlanetIndex, 'body' => ['settings' => ['refresh_interval' => '3600s']]]);
 
         $select     = self::$systemsBodiesModel->select()
                         ->setIntegrityCheck(false)
@@ -55,11 +53,12 @@ class Elastic extends Process
                             )
                         )
 
+                        ->joinLeft(self::$systemsBodiesInElasticModel->info('name'), self::$systemsBodiesModel->info('name') . '.id = ' . self::$systemsBodiesInElasticModel->info('name') . '.refBody')
                         ->joinLeft(self::$systemsBodiesOrbitalModel->info('name'), self::$systemsBodiesModel->info('name') . '.id = ' . self::$systemsBodiesOrbitalModel->info('name') . '.refBody')
                         ->joinLeft(self::$systemsBodiesSurfaceModel->info('name'), self::$systemsBodiesModel->info('name') . '.id = ' . self::$systemsBodiesSurfaceModel->info('name') . '.refBody')
                         ->joinLeft(self::$systemsBodiesParentsModel->info('name'), self::$systemsBodiesModel->info('name') . '.id = ' . self::$systemsBodiesParentsModel->info('name') . '.refBody')
 
-                        ->where('inElastic = ?', 0)
+                        ->where(self::$systemsBodiesInElasticModel->info('name') . '.inElastic IS NULL')
                         ->limit(static::$limit);
 
         $needToBeRefreshed      = self::$systemsBodiesModel->getAdapter()->fetchAll($select);
@@ -76,11 +75,9 @@ class Elastic extends Process
                 }
             }
 
-            $client->indices()->putSettings([
-                'index' => static::$elasticConfig->bodyIndex,
-                'body'  => ['settings'  => ['refresh_interval'  => '600s']]
-            ]);
-            //$client->indices()->refresh(array('index' => static::$elasticConfig->bodyIndex));
+            $client->indices()->putSettings(['index' => static::$elasticConfig->bodyStarIndex, 'body' => ['settings' => ['refresh_interval' => '60s']]]);
+            $client->indices()->putSettings(['index' => static::$elasticConfig->bodyPlanetIndex, 'body' => ['settings' => ['refresh_interval' => '60s']]]);
+            $client->indices()->refresh();
         }
 
         self::$systemsBodiesModel->enableCache();
@@ -99,43 +96,31 @@ class Elastic extends Process
         return false; // Trigger background task sleep...
     }
 
-    public static function insertBody($currentBodyId, $currentBody = null)
+    public static function insertBody($currentBodyId, $currentBodyCache = null)
     {
         self::setupDatabaseModels();
         self::$systemsBodiesModel->disableCache();
 
         \EDSM_System_Body::destroyInstance($currentBodyId);
-        $currentBody    = \EDSM_System_Body::getInstance($currentBodyId, $currentBody);
+        $currentBody = \EDSM_System_Body::getInstance($currentBodyId, $currentBodyCache);
 
         if(!is_null($currentBody->getType()))
         {
-            $client         = self::getClient();
+            self::deleteBody($currentBodyId, $currentBody->getMainType());
+
             $currentSystem  = $currentBody->getSystem();
 
-            // Silently delete the old document if it exists...
-            try
-            {
-                $client->delete([
-                    'index'     => static::$elasticConfig->bodyIndex,
-                    'type'      => '_doc',
-                    'id'        => $currentBodyId
-                ]);
-            }
-            catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex)
-            {
-                self::$systemsBodiesModel->enableCache();
-                return true;
-            }
-            catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
-
-            // System d'ont exists, delete the body...
+            // System don't exists, delete the body...
             if(is_null($currentSystem))
             {
                 self::$systemsBodiesModel->deleteById($currentBodyId);
             }
-            else
+            elseif($currentBody->getMainType() !== null)
             {
+                $client         = self::getClient();
+
                 // Generate elastic body
+                $elasticIndex   = ($currentBody->getMainType() === 'Star') ? static::$elasticConfig->bodyStarIndex : static::$elasticConfig->bodyPlanetIndex;
                 $elasticBody    = [
                     'bodyId'                            => $currentBodyId,
                     'bodyName'                          => strtolower($currentBody->getName()),
@@ -145,11 +130,9 @@ class Elastic extends Process
                     'systemY'                           => $currentSystem->getY(),
                     'systemZ'                           => $currentSystem->getZ(),
 
-                    'mainType'                          => ( ($currentBody->getMainType() == 'Star') ? 1 : 2 ),
                     'subType'                           => $currentBody->getType(),
                     'distanceToArrival'                 => $currentBody->getDistanceToArrival(),
 
-                    'isMainStar'                        => $currentBody->isMainStar(),
                     'isLandable'                        => ( ($currentBody->getMainType() == 'Star') ? $currentBody->isScoopable() : $currentBody->isLandable() ),
 
                     'age'                               => $currentBody->getAge(),
@@ -159,14 +142,8 @@ class Elastic extends Process
 
                     'haveBeltsOrRings'                  => false,
 
-                    'gravity'                           => $currentBody->getGravity(),
                     'mass'                              => $currentBody->getMass(),
                     'radius'                            => $currentBody->getRadius(),
-
-                    'terraformingState'                 => $currentBody->getTerraformState(),
-                    'atmosphereType'                    => $currentBody->getAtmosphere(),
-                    'volcanismType'                     => $currentBody->getVolcanism(),
-                    'reserveLevel'                      => $currentBody->getReserveLevel(),
 
                     'surfaceTemperature'                => $currentBody->getSurfaceTemperature(),
                     'surfacePressure'                   => $currentBody->getSurfacePressure(),
@@ -181,8 +158,22 @@ class Elastic extends Process
                     'axialTilt'                         => $currentBody->getAxisTilt(),
                 ];
 
+                if($currentBody->getMainType() === 'Star')
+                {
+                    $elasticBody['isMainStar']  = $currentBody->isMainStar();
+                }
+                if($currentBody->getMainType() === 'Planet')
+                {
+                    $elasticBody['gravity']             = $currentBody->getGravity();
+
+                    $elasticBody['terraformingState']   = $currentBody->getTerraformState();
+                    $elasticBody['atmosphereType']      = $currentBody->getAtmosphere();
+                    $elasticBody['volcanismType']       = $currentBody->getVolcanism();
+                    $elasticBody['reserveLevel']        = $currentBody->getReserveLevel();
+                }
+
                 // Belts?
-                if($elasticBody['mainType'] == 1)
+                if($currentBody->getMainType() === 'Star')
                 {
                     $haveBelts = $currentBody->getBelts();
 
@@ -193,7 +184,7 @@ class Elastic extends Process
                 }
 
                 // Rings?
-                if($elasticBody['mainType'] == 2)
+                if($currentBody->getMainType() === 'Planet')
                 {
                     $haveRings = $currentBody->getRings();
 
@@ -204,38 +195,47 @@ class Elastic extends Process
                 }
 
                 // Materials
-                $currentBodyMaterials   = $currentBody->getMaterials(true);
-                if(!is_null($currentBodyMaterials) && count($currentBodyMaterials) > 0)
+                if($currentBody->getMainType() === 'Planet')
                 {
-                    $elasticBody['materials'] = array();
-
-                    foreach($currentBodyMaterials AS $id => $currentMaterial)
+                    $currentBodyMaterials   = $currentBody->getMaterials(true);
+                    if(!is_null($currentBodyMaterials) && count($currentBodyMaterials) > 0)
                     {
-                        $elasticBody['materials'][] = array('id' => $id, 'value' => $currentMaterial['value']);
+                        $elasticBody['materials'] = array();
+
+                        foreach($currentBodyMaterials AS $id => $currentMaterial)
+                        {
+                            $elasticBody['materials'][] = array('id' => $id, 'value' => $currentMaterial['value']);
+                        }
                     }
                 }
 
                 // Atmosphere composition
-                $currentBodyAtmosphereComposition   = $currentBody->getAtmosphereComposition();
-                if(!is_null($currentBodyAtmosphereComposition) && count($currentBodyAtmosphereComposition) > 0)
+                if($currentBody->getMainType() === 'Planet')
                 {
-                    $elasticBody['atmosphereComposition'] = array();
-
-                    foreach($currentBodyAtmosphereComposition AS $id => $currentComposition)
+                    $currentBodyAtmosphereComposition   = $currentBody->getAtmosphereComposition();
+                    if(!is_null($currentBodyAtmosphereComposition) && count($currentBodyAtmosphereComposition) > 0)
                     {
-                        $elasticBody['atmosphereComposition'][] = array('id' => $id, 'value' => $currentComposition);
+                        $elasticBody['atmosphereComposition'] = array();
+
+                        foreach($currentBodyAtmosphereComposition AS $id => $currentComposition)
+                        {
+                            $elasticBody['atmosphereComposition'][] = array('id' => $id, 'value' => $currentComposition);
+                        }
                     }
                 }
 
                 // Solid composition
-                $currentBodySolidComposition   = $currentBody->getSolidComposition();
-                if(!is_null($currentBodySolidComposition) && count($currentBodySolidComposition) > 0)
+                if($currentBody->getMainType() === 'Planet')
                 {
-                    $elasticBody['solidComposition'] = array();
-
-                    foreach($currentBodySolidComposition AS $id => $currentComposition)
+                    $currentBodySolidComposition   = $currentBody->getSolidComposition();
+                    if(!is_null($currentBodySolidComposition) && count($currentBodySolidComposition) > 0)
                     {
-                        $elasticBody['solidComposition'][] = array('id' => $id, 'value' => $currentComposition);
+                        $elasticBody['solidComposition'] = array();
+
+                        foreach($currentBodySolidComposition AS $id => $currentComposition)
+                        {
+                            $elasticBody['solidComposition'][] = array('id' => $id, 'value' => $currentComposition);
+                        }
                     }
                 }
 
@@ -292,30 +292,17 @@ class Elastic extends Process
                 }
 
                 // Insert a new version
-                $response = $client->index([
-                    'index'     => static::$elasticConfig->bodyIndex,
-                    'type'      => '_doc',
-                    'id'        => $currentBody->getId(),
-                    'body'      => $elasticBody,
-                ]);
-                //\Zend_Debug::dump($response, 'INSERT');
+                $response = $client->index(['index' => $elasticIndex, 'body' => $elasticBody]);
 
                 // Check if it's ok
-
-                try
+                if(is_array($response) && array_key_exists('result', $response) && $response['result'] === 'created')
                 {
-                    $response = $client->get([
-                        'index'     => static::$elasticConfig->bodyIndex,
-                        'type'      => '_doc',
-                        'id'        => $currentBody->getId()
-                    ]);
-                }
-                catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){$response = null;}
+                    try
+                    {
+                        self::$systemsBodiesInElasticModel->insert(['refBody' => $currentBody->getId(), 'inElastic' => 1]);
+                    }
+                    catch(\Zend_Db_Exception $ex){}
 
-
-                if(is_array($response) && array_key_exists('found', $response) && $response['found'] === true)
-                {
-                    self::$systemsBodiesModel->updateById($currentBody->getId(), ['inElastic' => 1]);
                     self::$systemsBodiesModel->enableCache();
                     return true;
                 }
@@ -323,8 +310,101 @@ class Elastic extends Process
         }
 
         self::$systemsBodiesModel->enableCache();
-
         return false;
+    }
+
+    public static function getBodyDocumentId($bodyId, $bodyType = null)
+    {
+        $elasticClient = self::getClient();
+
+        if(is_null($bodyType) || $bodyType === 1 || $bodyType === 'Star')
+        {
+            try
+            {
+                $response = $elasticClient->search([
+                    'index' => static::$elasticConfig->bodyStarIndex,
+                    'body'      => [
+                        'size'          => 1,
+                        'stored_fields' => [],
+                        '_source'       => ['bodyId'],
+                        'query'         => ['bool' => ['filter' => ['term' => ['bodyId' => (int) $bodyId]]]]
+                    ]
+                ]);
+
+                if(is_array($response) && array_key_exists('hits', $response))
+                {
+                    if($response['hits']['total']['value'] > 0 && count($response['hits']['hits']) > 0)
+                    {
+                        return $response['hits']['hits'][0]['_id'];
+                    }
+                }
+            }
+            catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
+            catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
+        }
+
+        if(is_null($bodyType) || $bodyType === 2 || $bodyType === 'Planet')
+        {
+            try
+            {
+                $response = $elasticClient->search([
+                    'index' => static::$elasticConfig->bodyPlanetIndex,
+                    'body'      => [
+                        'size'          => 1,
+                        'stored_fields' => [],
+                        '_source'       => ['bodyId'],
+                        'query'         => ['bool' => ['filter' => ['term' => ['bodyId' => (int) $bodyId]]]]
+                    ]
+                ]);
+
+                if(is_array($response) && array_key_exists('hits', $response))
+                {
+                    if($response['hits']['total']['value'] > 0 && count($response['hits']['hits']) > 0)
+                    {
+                        return $response['hits']['hits'][0]['_id'];
+                    }
+                }
+            }
+            catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
+            catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
+        }
+
+        return null;
+    }
+
+    public static function deleteBody($bodyId, $bodyType = null)
+    {
+        $elasticClient      = self::getClient();
+        $currentDocument    = self::getBodyDocumentId($bodyId, $bodyType);
+
+        if(!is_null($currentDocument))
+        {
+            if(is_null($bodyType) || $bodyType === 1 || $bodyType === 'Star')
+            {
+                try
+                {
+                    $elasticClient->delete([
+                        'index'     => static::$elasticConfig->bodyStarIndex,
+                        'id'        => $bodyId
+                    ]);
+                }
+                catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
+                catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
+            }
+
+            if(is_null($bodyType) || $bodyType === 2 || $bodyType === 'Planet')
+            {
+                try
+                {
+                    $elasticClient->delete([
+                        'index'     => static::$elasticConfig->bodyPlanetIndex,
+                        'id'        => $bodyId
+                    ]);
+                }
+                catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
+                catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
+            }
+        }
     }
 
     private static function setupDatabaseModels()
@@ -337,6 +417,7 @@ class Elastic extends Process
             self::$systemsBodiesParentsModel    = new \Models_Systems_Bodies_Parents;
             self::$systemsBodiesUsersModel      = new \Models_Systems_Bodies_Users;
             self::$systemsBodiesUsersSAAModel   = new \Models_Systems_Bodies_UsersSAA;
+            self::$systemsBodiesInElasticModel  = new \Models_Systems_Bodies_InElastic;
         }
     }
 
@@ -346,7 +427,7 @@ class Elastic extends Process
         {
             require_once LIBRARY_PATH . '/React/Promise/functions_include.php';
 
-            static::$elasticConfig  = \Zend_Registry::get('appConfig')->elacticSearch;
+            static::$elasticConfig  = \Zend_Registry::get('appConfig')->elasticSearch;
             static::$elasticClient  = \Elasticsearch\ClientBuilder::create()
                                         ->setHosts([static::$elasticConfig->host])
                                         ->build();
@@ -355,19 +436,23 @@ class Elastic extends Process
         return static::$elasticClient;
     }
 
-    protected function reset()
+    protected static function reset()
     {
-        $client                 = self::getClient();
-        $systemsBodiesModel     = new \Models_Systems_Bodies;
+        $client = self::getClient();
 
         try
         {
-            $client->indices()->delete(['index' => static::$elasticConfig->bodyIndex]);
+            $client->indices()->delete(['index' => static::$elasticConfig->bodyStarIndex]);
+        }
+        catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
+        try
+        {
+            $client->indices()->delete(['index' => static::$elasticConfig->bodyPlanetIndex]);
         }
         catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
 
         $client->indices()->create([
-            'index' => static::$elasticConfig->bodyIndex,
+            'index' => static::$elasticConfig->bodyStarIndex,
             'body'  => [
                 'settings'  => [
                     'refresh_interval'  => '600s',
@@ -389,89 +474,163 @@ class Elastic extends Process
                     ]
                 ],
                 'mappings'  => [
-                    '_doc'  => [
-                        'properties'    => [
-                            'bodyId'                => ['type' => 'integer'],
-                            'bodyName'              => [
-                                'type'                  => 'keyword',
-                                'fields'                => [
-                                    'keywordAutoComplete'   => ['type' => 'text', 'analyzer' => 'autocomplete', 'search_analyzer' => 'standard'],
-                                ],
+                    'properties'    => [
+                        'bodyId'                => ['type' => 'integer'],
+                        'bodyName'              => [
+                            'type'                  => 'keyword',
+                            'fields'                => [
+                                'keywordAutoComplete'   => ['type' => 'text', 'analyzer' => 'autocomplete', 'search_analyzer' => 'standard'],
                             ],
-                            'systemName'            => [
-                                'type'                  => 'keyword',
-                                'fields'                => [
-                                    'keywordAutoComplete'   => ['type' => 'text', 'analyzer' => 'autocomplete', 'search_analyzer' => 'standard'],
-                                ],
+                        ],
+                        'systemName'            => [
+                            'type'                  => 'keyword',
+                            'fields'                => [
+                                'keywordAutoComplete'   => ['type' => 'text', 'analyzer' => 'autocomplete', 'search_analyzer' => 'standard'],
                             ],
+                        ],
 
-                            'mainType'              => ['type' => 'byte'],
-                            'subType'               => ['type' => 'short'],
-                            'distanceToArrival'     => ['type' => 'integer'],
+                        'systemX'               => ['type' => 'double'],
+                        'systemY'               => ['type' => 'double'],
+                        'systemZ'               => ['type' => 'double'],
 
-                            'isMainStar'            => ['type' => 'boolean'],
-                            'isLandable'            => ['type' => 'boolean'],
-                            'haveBeltsOrRings'      => ['type' => 'boolean'],
+                        'subType'               => ['type' => 'short'],
+                        'distanceToArrival'     => ['type' => 'integer'],
 
-                            'age'                   => ['type' => 'integer'],
-                            'absoluteMagnitude'     => ['type' => 'double'],
+                        'isMainStar'            => ['type' => 'boolean'],
+                        'isLandable'            => ['type' => 'boolean'],
+                        'haveBeltsOrRings'      => ['type' => 'boolean'],
 
-                            'gravity'               => ['type' => 'float'],
-                            'mass'                  => ['type' => 'double'],
-                            'radius'                => ['type' => 'double'],
+                        'age'                   => ['type' => 'integer'],
+                        'absoluteMagnitude'     => ['type' => 'double'],
 
-                            'terraformingState'     => ['type' => 'byte'],
-                            'atmosphereType'        => ['type' => 'short'],
-                            'volcanismType'         => ['type' => 'short'],
-                            'reserveLevel'          => ['type' => 'short'],
+                        'mass'                  => ['type' => 'double'],
+                        'radius'                => ['type' => 'double'],
 
-                            'surfaceTemperature'                => ['type' => 'double'],
-                            'surfacePressure'                   => ['type' => 'double'],
+                        'surfaceTemperature'                => ['type' => 'double'],
+                        'surfacePressure'                   => ['type' => 'double'],
 
-                            'orbitalPeriod'                     => ['type' => 'double'],
-                            'semiMajorAxis'                     => ['type' => 'double'],
-                            'orbitalEccentricity'               => ['type' => 'double'],
-                            'orbitalInclination'                => ['type' => 'double'],
-                            'argOfPeriapsis'                    => ['type' => 'double'],
-                            'rotationalPeriod'                  => ['type' => 'double'],
-                            'rotationalPeriodTidallyLocked'     => ['type' => 'boolean'],
-                            'axialTilt'                         => ['type' => 'double'],
+                        'orbitalPeriod'                     => ['type' => 'double'],
+                        'semiMajorAxis'                     => ['type' => 'double'],
+                        'orbitalEccentricity'               => ['type' => 'double'],
+                        'orbitalInclination'                => ['type' => 'double'],
+                        'argOfPeriapsis'                    => ['type' => 'double'],
+                        'rotationalPeriod'                  => ['type' => 'double'],
+                        'rotationalPeriodTidallyLocked'     => ['type' => 'boolean'],
+                        'axialTilt'                         => ['type' => 'double'],
 
-                            'materials'             => [
-                                'type'                  => 'nested',
-                                'properties'            => [
-                                    'id'                    => ['type' => 'short'],
-                                    'value'                 => ['type' => 'scaled_float', 'scaling_factor' => 100],
-                                ]
-                            ],
-                            'atmosphereComposition' => [
-                                'type'                  => 'nested',
-                                'properties'            => [
-                                    'id'                    => ['type' => 'short'],
-                                    'value'                 => ['type' => 'scaled_float', 'scaling_factor' => 100],
-                                ]
-                            ],
-                            'solidComposition'      => [
-                                'type'                  => 'nested',
-                                'properties'            => [
-                                    'id'                    => ['type' => 'short'],
-                                    'value'                 => ['type' => 'scaled_float', 'scaling_factor' => 100],
-                                ]
-                            ],
-
-                            'firstScanned'          => ['type' => 'integer'],
-                            'haveScanned'           => ['type' => 'integer'], // array
-                            'firstMapped'           => ['type' => 'integer'],
-                            'haveMapped'            => ['type' => 'integer'], // array
-                        ]
+                        'firstScanned'          => ['type' => 'integer'],
+                        'haveScanned'           => ['type' => 'integer'], // array
+                        'firstMapped'           => ['type' => 'integer'],
+                        'haveMapped'            => ['type' => 'integer'], // array
                     ]
                 ]
             ]
         ]);
 
-        $systemsBodiesModel->update(
-            ['inElastic' => 0],
-            $systemsBodiesModel->getAdapter()->quoteInto('inElastic = ?', 1)
-        );
+        $client->indices()->create([
+            'index' => static::$elasticConfig->bodyPlanetIndex,
+            'body'  => [
+                'settings'  => [
+                    'refresh_interval'  => '600s',
+                    'analysis'          => [
+                        'filter'            => [
+                            'autocomplete_filter' => [
+                                'type'              => 'edge_ngram',
+                                'min_gram'          => 1,
+                                'max_gram'          => 20,
+                            ],
+                        ],
+                        'analyzer'          => [
+                            'autocomplete'      => [
+                                'type'              => 'custom',
+                                'tokenizer'         => 'standard',
+                                'filter'            => ['autocomplete_filter'],
+                            ]
+                        ]
+                    ]
+                ],
+                'mappings'  => [
+                    'properties'    => [
+                        'bodyId'                => ['type' => 'integer'],
+                        'bodyName'              => [
+                            'type'                  => 'keyword',
+                            'fields'                => [
+                                'keywordAutoComplete'   => ['type' => 'text', 'analyzer' => 'autocomplete', 'search_analyzer' => 'standard'],
+                            ],
+                        ],
+                        'systemName'            => [
+                            'type'                  => 'keyword',
+                            'fields'                => [
+                                'keywordAutoComplete'   => ['type' => 'text', 'analyzer' => 'autocomplete', 'search_analyzer' => 'standard'],
+                            ],
+                        ],
+
+                        'systemX'               => ['type' => 'double'],
+                        'systemY'               => ['type' => 'double'],
+                        'systemZ'               => ['type' => 'double'],
+
+                        'subType'               => ['type' => 'short'],
+                        'distanceToArrival'     => ['type' => 'integer'],
+
+                        'isLandable'            => ['type' => 'boolean'],
+                        'haveBeltsOrRings'      => ['type' => 'boolean'],
+
+                        'age'                   => ['type' => 'integer'],
+                        'absoluteMagnitude'     => ['type' => 'double'],
+
+                        'gravity'               => ['type' => 'float'],
+                        'mass'                  => ['type' => 'double'],
+                        'radius'                => ['type' => 'double'],
+
+                        'terraformingState'     => ['type' => 'byte'],
+                        'atmosphereType'        => ['type' => 'short'],
+                        'volcanismType'         => ['type' => 'short'],
+                        'reserveLevel'          => ['type' => 'short'],
+
+                        'surfaceTemperature'                => ['type' => 'double'],
+                        'surfacePressure'                   => ['type' => 'double'],
+
+                        'orbitalPeriod'                     => ['type' => 'double'],
+                        'semiMajorAxis'                     => ['type' => 'double'],
+                        'orbitalEccentricity'               => ['type' => 'double'],
+                        'orbitalInclination'                => ['type' => 'double'],
+                        'argOfPeriapsis'                    => ['type' => 'double'],
+                        'rotationalPeriod'                  => ['type' => 'double'],
+                        'rotationalPeriodTidallyLocked'     => ['type' => 'boolean'],
+                        'axialTilt'                         => ['type' => 'double'],
+
+                        'materials'             => [
+                            'type'                  => 'nested',
+                            'properties'            => [
+                                'id'                    => ['type' => 'short'],
+                                'value'                 => ['type' => 'scaled_float', 'scaling_factor' => 100],
+                            ]
+                        ],
+                        'atmosphereComposition' => [
+                            'type'                  => 'nested',
+                            'properties'            => [
+                                'id'                    => ['type' => 'short'],
+                                'value'                 => ['type' => 'scaled_float', 'scaling_factor' => 100],
+                            ]
+                        ],
+                        'solidComposition'      => [
+                            'type'                  => 'nested',
+                            'properties'            => [
+                                'id'                    => ['type' => 'short'],
+                                'value'                 => ['type' => 'scaled_float', 'scaling_factor' => 100],
+                            ]
+                        ],
+
+                        'firstScanned'          => ['type' => 'integer'],
+                        'haveScanned'           => ['type' => 'integer'], // array
+                        'firstMapped'           => ['type' => 'integer'],
+                        'haveMapped'            => ['type' => 'integer'], // array
+                    ]
+                ]
+            ]
+        ]);
+
+        $systemsBodiesInElasticModel = new \Models_Systems_Bodies_InElastic;
+        $systemsBodiesInElasticModel->getAdapter()->query('TRUNCATE TABLE ' . $systemsBodiesInElasticModel->info('name'));
     }
 }
