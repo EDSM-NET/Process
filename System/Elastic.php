@@ -16,6 +16,7 @@ class Elastic extends Process
 
     static protected $systemsModel                  = null;
     static protected $systemsBodiesModel            = null;
+    static protected $systemsBodiesCountModel       = null;
     static protected $systemsInElasticModel         = null;
     static protected $systemsInformationsModel      = null;
 
@@ -43,12 +44,14 @@ class Elastic extends Process
                         ->from(
                             self::$systemsModel,
                             array(
-                                self::$systemsModel->info('name') . '.*',
-                                self::$systemsInformationsModel->info('name') . '.*',
+                                                   self::$systemsModel->info('name') . '.*',
+                                                   self::$systemsBodiesCountModel->info('name') . '.*',
+                                'bodyCount'     => self::$systemsInformationsModel->info('name') . '.bodyCount',
                             )
                         )
 
                         ->joinLeft(self::$systemsInElasticModel->info('name'), self::$systemsModel->info('name') . '.id = ' . self::$systemsInElasticModel->info('name') . '.refSystem')
+                        ->joinLeft(self::$systemsBodiesCountModel->info('name'), self::$systemsModel->info('name') . '.id = ' . self::$systemsBodiesCountModel->info('name') . '.refSystem')
                         ->joinLeft(self::$systemsInformationsModel->info('name'), self::$systemsModel->info('name') . '.id = ' . self::$systemsInformationsModel->info('name') . '.refSystem')
                         ->joinLeft(
                             self::$systemsBodiesModel->info('name'),
@@ -119,10 +122,13 @@ class Elastic extends Process
             'systemZ'                           => $currentSystem->getZ(),
 
             'isGreen'                           => $currentSystem->isGreen(),
+            'bodyCount'                         => -1,
 
             'primaryStarId'                     => -1,
             'primaryStarType'                   => -1,
             'primaryStarName'                   => '',
+
+            'updateTime'                        => $currentSystem->getUpdateTime(),
         ];
 
         if(!is_null($currentSystemCache) && array_key_exists('primaryStarId', $currentSystemCache) && $currentSystemCache['primaryStarId'] !== null)
@@ -130,6 +136,11 @@ class Elastic extends Process
             $elasticBody['primaryStarId']       = $currentSystemCache['primaryStarId'];
             $elasticBody['primaryStarType']     = $currentSystemCache['primaryStarType'];
             $elasticBody['primaryStarName']     = $currentSystemCache['primaryStarName'];
+        }
+
+        if(!is_null($currentSystemCache) && array_key_exists('bodyCount', $currentSystemCache) && $currentSystemCache['bodyCount'] !== null)
+        {
+            $elasticBody['bodyCount']           = $currentSystemCache['bodyCount'];
         }
 
         // Insert a new version
@@ -207,6 +218,7 @@ class Elastic extends Process
         {
             self::$systemsModel                 = new \Models_Systems;
             self::$systemsBodiesModel           = new \Models_Systems_Bodies;
+            self::$systemsBodiesCountModel      = new \Models_Systems_Bodies_Count;
             self::$systemsInformationsModel     = new \Models_Systems_Informations;
             self::$systemsInElasticModel        = new \Models_Systems_InElastic;
         }
@@ -274,9 +286,12 @@ class Elastic extends Process
                         'systemZ'               => ['type' => 'double'],
 
                         'isGreen'               => ['type' => 'boolean'],
+                        'bodyCount'             => ['type' => 'short', 'null_value' => -1],
 
                         'primaryStarId'         => ['type' => 'integer', 'null_value' => -1],
                         'primaryStarType'       => ['type' => 'short', 'null_value' => -1],
+
+                        'updateTime'            => ['type' => 'date'],
                     ]
                 ]
             ]
