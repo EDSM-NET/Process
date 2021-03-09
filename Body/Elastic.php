@@ -38,8 +38,8 @@ class Elastic extends Process
 
         // Get Elastic client
         $client = self::getClient();
-        $client->indices()->putSettings(['index' => static::$elasticConfig->bodyStarIndex, 'body' => ['settings' => ['refresh_interval' => '3600s']]]);
-        $client->indices()->putSettings(['index' => static::$elasticConfig->bodyPlanetIndex, 'body' => ['settings' => ['refresh_interval' => '3600s']]]);
+        $client->indices()->putSettings(['index' => static::$elasticConfig->bodyStarIndex, 'body' => ['settings' => ['refresh_interval' => '-1']]]);
+        $client->indices()->putSettings(['index' => static::$elasticConfig->bodyPlanetIndex, 'body' => ['settings' => ['refresh_interval' => '-1']]]);
 
         $select     = self::$systemsBodiesModel->select()
                         ->setIntegrityCheck(false)
@@ -71,12 +71,13 @@ class Elastic extends Process
 
                 if($return === true)
                 {
+                    //static::log('<span class="text-info">Body\Elastic:</span> Inserted ' . $currentBody['id']);
                     $elasticUpdate++;
                 }
             }
 
-            $client->indices()->putSettings(['index' => static::$elasticConfig->bodyStarIndex, 'body' => ['settings' => ['refresh_interval' => '60s']]]);
-            $client->indices()->putSettings(['index' => static::$elasticConfig->bodyPlanetIndex, 'body' => ['settings' => ['refresh_interval' => '60s']]]);
+            $client->indices()->putSettings(['index' => static::$elasticConfig->bodyStarIndex, 'body' => ['settings' => ['refresh_interval' => '300s']]]);
+            $client->indices()->putSettings(['index' => static::$elasticConfig->bodyPlanetIndex, 'body' => ['settings' => ['refresh_interval' => '300s']]]);
             $client->indices()->refresh();
         }
 
@@ -106,8 +107,6 @@ class Elastic extends Process
 
         if(!is_null($currentBody->getType()))
         {
-            self::deleteBody($currentBodyId, $currentBody->getMainType());
-
             $currentSystem  = $currentBody->getSystem();
 
             // System don't exists, delete the body...
@@ -292,6 +291,7 @@ class Elastic extends Process
                 }
 
                 // Insert a new version
+                self::deleteBody($currentBodyId, $currentBody->getMainType());
                 $response = $client->index(['index' => $elasticIndex, 'body' => $elasticBody]);
 
                 // Check if it's ok
@@ -313,7 +313,7 @@ class Elastic extends Process
         return false;
     }
 
-    public static function getBodyDocumentId($bodyId, $bodyType = null)
+    public static function getBodyDocumentIds($bodyId, $bodyType = null)
     {
         $elasticClient = self::getClient();
 
@@ -324,7 +324,7 @@ class Elastic extends Process
                 $response = $elasticClient->search([
                     'index' => static::$elasticConfig->bodyStarIndex,
                     'body'      => [
-                        'size'          => 1,
+                        //'size'          => 1,
                         'stored_fields' => [],
                         '_source'       => ['bodyId'],
                         'query'         => ['bool' => ['filter' => ['term' => ['bodyId' => (int) $bodyId]]]]
@@ -335,7 +335,12 @@ class Elastic extends Process
                 {
                     if($response['hits']['total']['value'] > 0 && count($response['hits']['hits']) > 0)
                     {
-                        return $response['hits']['hits'][0]['_id'];
+                        $results = array();
+                        foreach($response['hits']['hits'] AS $result)
+                        {
+                            $results[] = $result['_id'];
+                        }
+                        return $results;
                     }
                 }
             }
@@ -350,7 +355,7 @@ class Elastic extends Process
                 $response = $elasticClient->search([
                     'index' => static::$elasticConfig->bodyPlanetIndex,
                     'body'      => [
-                        'size'          => 1,
+                        //'size'          => 1,
                         'stored_fields' => [],
                         '_source'       => ['bodyId'],
                         'query'         => ['bool' => ['filter' => ['term' => ['bodyId' => (int) $bodyId]]]]
@@ -361,7 +366,12 @@ class Elastic extends Process
                 {
                     if($response['hits']['total']['value'] > 0 && count($response['hits']['hits']) > 0)
                     {
-                        return $response['hits']['hits'][0]['_id'];
+                        $results = array();
+                        foreach($response['hits']['hits'] AS $result)
+                        {
+                            $results[] = $result['_id'];
+                        }
+                        return $results;
                     }
                 }
             }
@@ -375,34 +385,37 @@ class Elastic extends Process
     public static function deleteBody($bodyId, $bodyType = null)
     {
         $elasticClient      = self::getClient();
-        $currentDocument    = self::getBodyDocumentId($bodyId, $bodyType);
+        $currentDocuments   = self::getBodyDocumentIds($bodyId, $bodyType);
 
-        if(!is_null($currentDocument))
+        if(!is_null($currentDocuments) && count($currentDocuments) > 0)
         {
-            if(is_null($bodyType) || $bodyType === 1 || $bodyType === 'Star')
+            foreach($currentDocuments AS $currentDocument)
             {
-                try
+                if(is_null($bodyType) || $bodyType === 1 || $bodyType === 'Star')
                 {
-                    $elasticClient->delete([
-                        'index'     => static::$elasticConfig->bodyStarIndex,
-                        'id'        => $bodyId
-                    ]);
+                    try
+                    {
+                        $elasticClient->delete([
+                            'index'     => static::$elasticConfig->bodyStarIndex,
+                            'id'        => $currentDocument
+                        ]);
+                    }
+                    catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
+                    catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
                 }
-                catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
-                catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
-            }
 
-            if(is_null($bodyType) || $bodyType === 2 || $bodyType === 'Planet')
-            {
-                try
+                if(is_null($bodyType) || $bodyType === 2 || $bodyType === 'Planet')
                 {
-                    $elasticClient->delete([
-                        'index'     => static::$elasticConfig->bodyPlanetIndex,
-                        'id'        => $bodyId
-                    ]);
+                    try
+                    {
+                        $elasticClient->delete([
+                            'index'     => static::$elasticConfig->bodyPlanetIndex,
+                            'id'        => $currentDocument
+                        ]);
+                    }
+                    catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
+                    catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
                 }
-                catch(\Elasticsearch\Common\Exceptions\NoNodesAvailableException $ex){}
-                catch(\Elasticsearch\Common\Exceptions\Missing404Exception $ex){}
             }
         }
     }

@@ -15,6 +15,7 @@ class FarthestColonia extends Process
     static public function run()
     {
         list($group, $type) = func_get_args();
+        $elasticClient      = \Process\Body\Elastic::getClient();
 
         if($group == 1)
         {
@@ -43,7 +44,6 @@ class FarthestColonia extends Process
         // Make record query
         $result         = array();
         $sortSystem     = \Component\System::getInstance(3384966);
-        $elasticClient  = \Process\Body\Elastic::getClient();
         $elasticResults = $elasticClient->search([
             'index'     => $elasticIndex,
             'body'      => [
@@ -55,6 +55,9 @@ class FarthestColonia extends Process
                     'bool' => [
                         'filter'        => [
                             array('term' => ['subType' => (int) $type]),
+                            array('exists' => ['field' => 'systemX']),
+                            array('exists' => ['field' => 'systemY']),
+                            array('exists' => ['field' => 'systemZ']),
                         ]
                     ]
                 ],

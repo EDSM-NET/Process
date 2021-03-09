@@ -291,7 +291,7 @@ class Elastic extends Process
                         'primaryStarId'         => ['type' => 'integer', 'null_value' => -1],
                         'primaryStarType'       => ['type' => 'short', 'null_value' => -1],
 
-                        'updateTime'            => ['type' => 'date'],
+                        'updateTime'            => ['type' => 'date', 'format' => 'yyyy-MM-dd HH:mm:ss'],
                     ]
                 ]
             ]

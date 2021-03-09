@@ -15,6 +15,7 @@ class Lowest extends Process
     static public function run()
     {
         list($group, $type) = func_get_args();
+        $elasticClient      = \Process\Body\Elastic::getClient();
 
         if($group == 1)
         {
@@ -42,7 +43,6 @@ class Lowest extends Process
 
         // Make record query
         $result         = array();
-        $elasticClient  = \Process\Body\Elastic::getClient();
         $elasticResults = $elasticClient->search([
             'index'     => $elasticIndex,
             'body'      => [
