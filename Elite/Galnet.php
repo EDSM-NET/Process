@@ -10,7 +10,7 @@ use         Process\Process;
 
 class Galnet extends Process
 {
-    static private $url = 'https://elitedangerous-website-backend-production.elitedangerous.com/api/galnet?_format=json';
+    static private $url = 'https://cms.zaonce.net/en-GB/jsonapi/node/galnet_article?sort=-published_at';
 
     static public function run()
     {
@@ -48,68 +48,68 @@ class Galnet extends Process
                 return;
             }
 
-            if(is_array($body))
+            if(is_array($body) && array_key_exists('data', $body))
             {
-                foreach($body AS $article)
+                foreach($body['data'] AS $article)
                 {
-                    $article['title']   = trim($article['title']);
-
-                    $article['body']    = str_replace('<br />', PHP_EOL, $article['body']);
-                    $article['body']    = strip_tags($article['body']);
-
-                    $releaseDate        = explode(' ', $article['date']);
-                    $releaseDate[1]     = str_replace(
-                        array('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'),
-                        array('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'),
-                        $releaseDate[1]
-                    );
-                    $releaseDate    = $releaseDate[2] . '-' . $releaseDate[1] . '-' . str_pad($releaseDate[0], 2, '0', STR_PAD_LEFT);
-
-                    // Find current article
-                    $query  = $timelineModel->select()
-                                            ->where('category = ?', 'galnet')
-                                            ->where('name = ?', $article['title'])
-                                            ->where('releaseDate = ?', $releaseDate);
-                    $articleExists = $timelineModel->fetchRow($query);
-
-                    if(is_null($articleExists))
+                    if($article['type'] === 'node--galnet_article' && array_key_exists('attributes', $article))
                     {
-                        $releaseDate = $releaseDate;
+                        $article['attributes']['title']   = trim($article['attributes']['title']);
 
-                        $timelineModel->insert(array(
-                            'category'      => 'galnet',
-                            'name'          => $article['title'],
-                            'description'   => $article['body'],
-                            'image'         => $article['image'],
-                            'slug'          => $article['slug'],
-                            'releaseDate'   => $releaseDate,
-                        ));
+                        $releaseDate        = explode(' ', $article['attributes']['field_galnet_date']);
+                        $releaseDate[1]     = str_replace(
+                            array('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'),
+                            array('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'),
+                            $releaseDate[1]
+                        );
+                        $releaseDate    = $releaseDate[2] . '-' . $releaseDate[1] . '-' . str_pad($releaseDate[0], 2, '0', STR_PAD_LEFT);
 
-                        static::log('<span class="text-info">Elite\GalNet:</span> <span class="text-success">Added: ' . $article['title'] . '</span>');
+                        // Find current article
+                        $query  = $timelineModel->select()
+                                                ->where('category = ?', 'galnet')
+                                                ->where('name = ?', $article['attributes']['title'])
+                                                ->where('releaseDate = ?', $releaseDate);
+                        $articleExists = $timelineModel->fetchRow($query);
 
-                        $added++;
-                    }
-                    else
-                    {
-                        $updateArray    = array();
-
-                        if($article['body'] != $articleExists['description'])
+                        if(is_null($articleExists))
                         {
-                            $updateArray['description'] = $article['body'];
+                            $releaseDate = $releaseDate;
+
+                            $timelineModel->insert(array(
+                                'category'      => 'galnet',
+                                'name'          => $article['attributes']['title'],
+                                'description'   => $article['attributes']['body']['value'],
+                                'image'         => $article['attributes']['field_galnet_image'],
+                                'slug'          => $article['attributes']['field_slug'],
+                                'releaseDate'   => $releaseDate,
+                            ));
+
+                            static::log('<span class="text-info">Elite\GalNet:</span> <span class="text-success">Added: ' . $article['attributes']['title'] . '</span>');
+
+                            $added++;
                         }
-                        if($article['image'] != $articleExists['image'])
+                        else
                         {
-                            $updateArray['image'] = $article['image'];
-                        }
-                        if($article['slug'] != $articleExists['slug'])
-                        {
-                            $updateArray['slug'] = $article['slug'];
-                        }
+                            $updateArray    = array();
 
-                        if(count($updateArray) > 0)
-                        {
-                            $timelineModel->updateById($articleExists['id'], $updateArray);
-                            $updated++;
+                            if($article['attributes']['body']['value'] != $articleExists['description'])
+                            {
+                                $updateArray['description'] = $article['attributes']['body']['value'];
+                            }
+                            if($article['attributes']['field_galnet_image'] != $articleExists['image'])
+                            {
+                                $updateArray['image'] = $article['attributes']['field_galnet_image'];
+                            }
+                            if($article['attributes']['field_slug'] != $articleExists['slug'])
+                            {
+                                $updateArray['slug'] = $article['attributes']['field_slug'];
+                            }
+
+                            if(count($updateArray) > 0)
+                            {
+                                $timelineModel->updateById($articleExists['id'], $updateArray);
+                                $updated++;
+                            }
                         }
                     }
                 }

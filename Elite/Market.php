@@ -91,6 +91,7 @@ class Market extends Process
                           ->from($stationsModel, array('id'))
                           ->joinInner($stationsServicesModel->info('name'), $stationsServicesModel->info('name') . '.refStation = ' . $stationsModel->info('name') . '.id', null)
                           ->where($stationsModel->info('name') . '.name NOT LIKE ?', 'Rescue Ship - %')
+                          ->where($stationsModel->info('name') . '.type != ?', 31)
                           ->where($stationsServicesModel->info('name') . '.refService = ?', 11)
                           //->where('marketUpdateTime IS NOT NULL')
                           //->order('marketUpdateTime ASC')

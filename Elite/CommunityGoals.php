@@ -10,7 +10,7 @@ use         Process\Process;
 
 class CommunityGoals extends Process
 {
-    static private $url = 'https://elitedangerous-website-backend-production.elitedangerous.com/api/initiatives/list?_format=json&lang=en';
+    static private $url = 'https://api.orerve.net/2.0/website/initiatives/list?lang=en';
 
     static public function run()
     {
