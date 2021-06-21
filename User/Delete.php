@@ -230,6 +230,19 @@ class Delete extends Process
                 }
                 unset($model, $values);
 
+                // Delete all user microResources
+                $model  = new \Models_Users_MicroResources;
+                $values = $model->getByRefUser($userToHandle['id']);
+
+                if(!is_null($values) && count($values) > 0)
+                {
+                    foreach($values AS $value)
+                    {
+                        $model->deleteById($value['id']);
+                    }
+                }
+                unset($model, $values);
+
                 // Delete all user missions
                 $model  = new \Models_Users_Missions;
                 $values = $model->getByRefUser($userToHandle['id']);
@@ -280,6 +293,19 @@ class Delete extends Process
                     }
                 }
                 unset($model, $model2, $values);
+
+                // Delete all user ship lockers
+                $model  = new \Models_Users_Ships_Lockers;
+                $values = $model->getByRefUser($userToHandle['id']);
+
+                if(!is_null($values) && count($values) > 0)
+                {
+                    foreach($values AS $value)
+                    {
+                        $model->deleteById($value['id']);
+                    }
+                }
+                unset($model, $values);
 
                 // Delete all user statistics
                 $model  = new \Models_Users_Statistics;
